@@ -54,12 +54,10 @@
 #define pr_info(fmt, ...) pr_aud_info(fmt, ##__VA_ARGS__)
 #define pr_err(fmt, ...) pr_aud_err(fmt, ##__VA_ARGS__)
 
-struct sound_control {
- 	struct snd_soc_codec *snd_control_codec;
- 	int default_headphones_value;
- 	int default_speaker_value;
-	int default_mic_value;
-} soundcontrol;
+#ifdef CONFIG_SOUND_CONTROL
+#include <linux/sound_control.h>
+static struct snd_soc_codec *snd_control_codec;
+#endif
 
 #define TASHA_RX_PORT_START_NUMBER  16
 
@@ -823,6 +821,7 @@ struct tasha_priv {
 	int power_active_ref;
 
 	struct on_demand_supply on_demand_list[ON_DEMAND_SUPPLIES_MAX];
+
 	int (*machine_codec_event_cb)(struct snd_soc_codec *codec,
 				      enum wcd9335_codec_event);
 	int spkr_gain_offset;
@@ -13128,63 +13127,21 @@ static struct regulator *tasha_codec_find_ondemand_regulator(
 	return NULL;
 }
 
-void update_headphones_volume_boost(unsigned int vol_boost)
+#ifdef CONFIG_SOUND_CONTROL
+unsigned int sound_control_write(unsigned int reg, int val)
 {
-	int default_val = soundcontrol.default_headphones_value;
-	int boosted_val = default_val + vol_boost;
-	
-	snd_soc_write(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX1_RX_VOL_CTL, boosted_val);
- 	snd_soc_write(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX1_RX_VOL_MIX_CTL, boosted_val);
- 	snd_soc_write(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX2_RX_VOL_CTL, boosted_val);
- 	snd_soc_write(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX2_RX_VOL_MIX_CTL, boosted_val);
- 		
- 		pr_info("Sound Control: Boosted Headphones RX1 value %d\n",
- 		snd_soc_read(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX1_RX_VOL_CTL));
- 
- 		pr_info("Sound Control: Boosted Headphones RX2 value %d\n",
-		snd_soc_read(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX2_RX_VOL_CTL));
- 	
-}
+	int ori_val;
+	unsigned int boost_val;
 
-void update_speaker_gain(int vol_boost)
-{
-	int default_val = soundcontrol.default_speaker_value;
-	int boosted_val = default_val + vol_boost;
-	
-	pr_info("Sound Control: Speaker default value %d\n", default_val);
-	
-	snd_soc_write(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX6_RX_VOL_CTL, boosted_val);
- 	snd_soc_write(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX6_RX_VOL_MIX_CTL, boosted_val);
- 		 
- 	pr_info("Sound Control: Boosted Speaker RX6 value %d\n",
- 		snd_soc_read(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX6_RX_VOL_CTL));
-}
+	ori_val = snd_soc_read(snd_control_codec, reg);
 
-void update_mic_gain(int vol_boost)
-{
-	int default_val = soundcontrol.default_mic_value;
-	int boosted_val = default_val + vol_boost;
-	
-	pr_info("Sound Control: Speaker default value %d\n", default_val);
-	
-	snd_soc_write(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX0_RX_VOL_CTL, boosted_val);
- 	snd_soc_write(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX0_RX_VOL_MIX_CTL, boosted_val);
- 		 
- 	pr_info("Sound Control: Boosted Speaker RX6 value %d\n",
- 		snd_soc_read(soundcontrol.snd_control_codec,
- 		WCD9335_CDC_RX0_RX_VOL_CTL));
+	boost_val = ori_val + val;
+
+	snd_soc_write(snd_control_codec, reg, boost_val);
+
+	return boost_val;
 }
+#endif
 
 static int tasha_codec_probe(struct snd_soc_codec *codec)
 {
@@ -13196,7 +13153,10 @@ static int tasha_codec_probe(struct snd_soc_codec *codec)
 	void *ptr = NULL;
 	struct regulator *supply;
 
-	soundcontrol.snd_control_codec = codec;
+#ifdef CONFIG_SOUND_CONTROL
+	pr_info("soundcontrol codec probe...\n");
+	snd_control_codec = codec;
+#endif
 
 	control = dev_get_drvdata(codec->dev->parent);
 
@@ -13396,16 +13356,6 @@ static int tasha_codec_probe(struct snd_soc_codec *codec)
 #ifdef CONFIG_HTC_HEADSET_MGR
 	wcd9335_register_hs_notification();
 #endif
-
-	/*
- 	 * Get the default values during probe
- 	 */
- 	soundcontrol.default_headphones_value = snd_soc_read(codec,
- 		WCD9335_CDC_RX1_RX_VOL_CTL);
- 	soundcontrol.default_speaker_value = snd_soc_read(codec,
- 		WCD9335_CDC_RX6_RX_VOL_CTL);
- 	soundcontrol.default_mic_value = snd_soc_read(codec,
- 		WCD9335_CDC_RX0_RX_VOL_CTL);
 
 	return ret;
 
