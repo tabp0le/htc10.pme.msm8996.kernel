@@ -610,6 +610,12 @@ config SOUND_CONTROL
 	help
 	  If you say yes here you get sound control for wcd9335
 
+config FORCE_FAST_CHARGE
+	bool "Force faster charge rate for USB"
+	default n
+	help
+	  This allows users to override default charge rate for USB
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
