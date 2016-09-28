@@ -164,6 +164,11 @@ config CPU_FREQ_DEFAULT_GOV_BIOSHOCK
 	select CPU_FREQ_GOV_BIOSHOCK
 	help
 	  Default governor of BioShock kernel
+	  
+config CPU_FREQ_DEFAULT_GOV_DESPAIR
+	bool "despair"
+	select CPU_FREQ_GOV_DESPAIR
+	help	  
 
 endchoice
 
@@ -324,7 +329,10 @@ config CPU_FREQ_GOV_BIOSHOCK
 	depends on CPU_FREQ
 	help
 	  'bioshock' - More aggressive version of conservative
-	  	  
+	
+config CPU_FREQ_GOV_DESPAIR
+	tristate "'despair' cpufreq governor"
+	depends on CPU_FREQ	  	  
 
 config CPU_BOOST
 	tristate "Event base short term CPU freq boost"
