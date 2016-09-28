@@ -184,7 +184,11 @@ config CPU_FREQ_DEFAULT_GOV_CAFACTIVE
 	  Use the CPUFreq governor 'cafactive' as default. This allows
 	  you to get a full dynamic cpu frequency capable system by simply
 	  loading your cpufreq low-level hardware driver, using the
-	  'cafactive' governor for latency-sensitive workloads.	  		  
+	  'cafactive' governor for latency-sensitive workloads.	  
+	  
+config CPU_FREQ_DEFAULT_GOV_DYNAMIC_INTERACTIVE
+	bool "dynamic_interactive"
+	select CPU_FREQ_GOV_DYNAMIC_INTERACTIVE	  		  
 
 endchoice
 
@@ -364,7 +368,11 @@ config CPU_FREQ_GOV_DESPAIR
 	
 config CPU_FREQ_GOV_WHEATLEY
 	tristate "'wheatley' cpufreq governor"
-	depends on CPU_FREQ		  	  
+	depends on CPU_FREQ
+	
+config CPU_FREQ_GOV_DYNAMIC_INTERACTIVE
+	tristate "'dynamic_interactive' cpufreq governor"
+	depends on CPU_FREQ			  	  
 
 config CPU_BOOST
 	tristate "Event base short term CPU freq boost"
@@ -376,7 +384,7 @@ config CPU_BOOST
 	  - Migration of important threads from one CPU to another.
 
 	  If in doubt, say N.
-
+	  
 menu "x86 CPU frequency scaling drivers"
 depends on X86
 source "drivers/cpufreq/Kconfig.x86"
