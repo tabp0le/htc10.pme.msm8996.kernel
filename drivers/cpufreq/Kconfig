@@ -188,7 +188,13 @@ config CPU_FREQ_DEFAULT_GOV_CAFACTIVE
 	  
 config CPU_FREQ_DEFAULT_GOV_DYNAMIC_INTERACTIVE
 	bool "dynamic_interactive"
-	select CPU_FREQ_GOV_DYNAMIC_INTERACTIVE	  		  
+	select CPU_FREQ_GOV_DYNAMIC_INTERACTIVE
+	
+config CPU_FREQ_DEFAULT_GOV_HELLSACTIVE
+	bool "hellsactive"
+	select CPU_FREQ_GOV_HELLSACTIVE
+	help
+	Use the CPUfreq governor 'hellsactive' as default.		  		  
 
 endchoice
 
@@ -372,7 +378,11 @@ config CPU_FREQ_GOV_WHEATLEY
 	
 config CPU_FREQ_GOV_DYNAMIC_INTERACTIVE
 	tristate "'dynamic_interactive' cpufreq governor"
-	depends on CPU_FREQ			  	  
+	depends on CPU_FREQ
+	
+config CPU_FREQ_GOV_HELLSACTIVE
+	tristate "'hellsactive' cpufreq governor"
+	depends on CPU_FREQ				  	  
 
 config CPU_BOOST
 	tristate "Event base short term CPU freq boost"
