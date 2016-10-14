@@ -140,7 +140,7 @@ static int powering_down_with_fingerprint_still_pressed = 0;
 // minimum doubletap wait latency will be: (BASE_VALUE + PERIOD) * FUNC_CYLCE_DUR -> minimum is right now (8+0) * 9 = 72msec
 #define DT_WAIT_PERIOD_MAX 9
 #define DT_WAIT_PERIOD_BASE_VALUE 8
-#define DT_WAIT_PERIOD_DEFAULT 2
+#define DT_WAIT_PERIOD_DEFAULT 5
 static int doubletap_wait_period = DT_WAIT_PERIOD_DEFAULT;
 
 /* Home button work func 
