@@ -46,7 +46,7 @@
 #include <linux/power_supply.h>
 
 #define BATT_LOG(x...) do { \
-printk(KERN_INFO "[BATT] " x); \
+pr_debug("[BATT] " x); \
 } while (0)
 
 #define BATT_ERR(x...) do { \

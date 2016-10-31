@@ -514,7 +514,7 @@ enum hvdcp_voters {
 	HVDCP_PULSING_VOTER,
 	NUM_HVDCP_VOTERS,
 };
-static int smbchg_debug_mask;
+static int smbchg_debug_mask = 0;
 module_param_named(
 	debug_mask, smbchg_debug_mask, int, S_IRUSR | S_IWUSR
 );
@@ -10825,7 +10825,7 @@ static int smbchg_probe(struct spmi_device *spmi)
 		smbchg_debug_mask = 0xFF;
 	else
 		smbchg_debug_mask = 0x06;
-	printk("smbchg_debug_mask=0x%X\n",smbchg_debug_mask);
+	pr_debug("smbchg_debug_mask=0x%X\n",smbchg_debug_mask);
 #endif 
 
 	rerun_hvdcp_det_if_necessary(chip);
