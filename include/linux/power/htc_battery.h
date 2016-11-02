@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #define CONFIG_HTC_BATT_PCN0001 //Remap
 #define CONFIG_HTC_BATT_PCN0002 //Level consistent
 #define CONFIG_HTC_BATT_PCN0003 //Battery ID judgement
@@ -48,7 +49,7 @@
 #include <linux/power_supply.h>
 
 #define BATT_LOG(x...) do { \
-pr_debug(KERN_INFO "[BATT] " x); \
+pr_err(KERN_INFO "[BATT] " x); \
 } while (0)
 
 #define BATT_ERR(x...) do { \
