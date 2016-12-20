@@ -30,6 +30,9 @@ static bool enable_bluedroid_timer_ws = true;
 module_param(enable_bluedroid_timer_ws, bool, 0644);
 static bool enable_ipa_ws = false;
 module_param(enable_ipa_ws, bool, 0644);
+static bool enable_wlan_extscan_wl_ws = true;
+module_param(enable_wlan_extscan_wl_ws, bool, 0644);
+
 
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
@@ -586,6 +589,8 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 			!strncmp(ws->name, "qcom_rx_wakelock", 11)) ||
 		(!enable_wlan_ws &&
 			!strncmp(ws->name, "wlan", 4)) ||
+		(!enable_wlan_extscan_wl_ws &&
+			!strncmp(ws->name, "wlan_extscan_wl", 15)) ||
 		(!enable_ipa_ws &&
 			!strncmp(ws->name, "IPA_WS", 6)))) {
 		/*
