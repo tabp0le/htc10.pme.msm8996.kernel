@@ -90,7 +90,7 @@ enum {
 	DEBUG_VERBOSE = 1U << 3,
 };
 
-static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND | DEBUG_BTWAKE | DEBUG_VERBOSE; //HTC_BT enable full msg for debug in early state
+static int debug_mask = 0; //DEBUG_USER_STATE | DEBUG_SUSPEND | DEBUG_BTWAKE | DEBUG_VERBOSE; //HTC_BT enable full msg for debug in early state
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 struct bluesleep_info {
@@ -228,7 +228,9 @@ static void hsuart_power(int on)
 		return;
 	}
 
-	pr_info("(%d)+\n", on);
+	if (debug_mask & DEBUG_SUSPEND)
+		pr_info("(%d)+\n", on);
+
 	if (on) {
 		msm_hs_request_clock_on_brcmbt(bsi->uport);
 		msm_hs_set_mctrl_brcmbt(bsi->uport, TIOCM_RTS);
