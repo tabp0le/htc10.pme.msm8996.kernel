@@ -97,6 +97,7 @@ build-anykernel.cfg
 *.diff
 *.patch
 *.list
+*.bak
 out/*
 
 
