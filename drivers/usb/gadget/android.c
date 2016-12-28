@@ -3387,6 +3387,7 @@ static ssize_t projector_debug_mode_store(
 			test_frame = kzalloc(framesize * 2, GFP_KERNEL);
 
 		if (test_frame)
+		{
 			for (i = 0 ; i < framesize ; i++)
 				if (i < framesize/4)
 					test_frame[i] = 0xF800;
@@ -3396,6 +3397,7 @@ static ssize_t projector_debug_mode_store(
 					test_frame[i] = 0x1F;
 				else
 					test_frame[i] = 0xFFFF;
+		}
 
 		config->debug_mode = value;
 		return size;

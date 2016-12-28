@@ -34,7 +34,7 @@
 #include <linux/reboot.h>
 #endif
 
-#include <../../power/reset/htc_restart_handler.h>
+#include "../../power/reset/htc_restart_handler.h"
 
 #define CREATE_MASK(NUM_BITS, POS) \
 	((unsigned char) (((1 << (NUM_BITS)) - 1) << (POS)))
