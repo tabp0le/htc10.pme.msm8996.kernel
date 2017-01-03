@@ -119,9 +119,6 @@ size_t get_cal_info_size(int32_t cal_type)
 	case AFE_SIDETONE_CAL_TYPE:
 		size = sizeof(struct audio_cal_info_sidetone);
 		break;
-	case AFE_SIDETONE_IIR_CAL_TYPE:
-		size = sizeof(struct audio_cal_info_sidetone_iir);
-		break;
 	case LSM_CUST_TOPOLOGY_CAL_TYPE:
 		size = 0;
 		break;
@@ -267,9 +264,6 @@ size_t get_user_cal_type_size(int32_t cal_type)
 		break;
 	case AFE_SIDETONE_CAL_TYPE:
 		size = sizeof(struct audio_cal_type_sidetone);
-		break;
-	case AFE_SIDETONE_IIR_CAL_TYPE:
-		size = sizeof(struct audio_cal_type_sidetone_iir);
 		break;
 	case LSM_CUST_TOPOLOGY_CAL_TYPE:
 		size = sizeof(struct audio_cal_type_basic);

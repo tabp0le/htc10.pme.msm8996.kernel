@@ -223,8 +223,8 @@ static int voice_svc_send_req(struct voice_svc_cmd_request *apr_request,
 	} else if (!strcmp(apr_request->svc_name, VOICE_SVC_MVM_STR)) {
 		apr_handle = prtd->apr_q6_mvm;
 	} else {
-		pr_err("%s: Invalid service %.*s\n", __func__,
-			MAX_APR_SERVICE_NAME_LEN, apr_request->svc_name);
+		pr_err("%s: Invalid service %s\n", __func__,
+			apr_request->svc_name);
 
 		ret = -EINVAL;
 		goto done;
@@ -251,7 +251,7 @@ static int voice_svc_reg(char *svc, uint32_t src_port,
 {
 	int ret = 0;
 
-	pr_info("%s\n", __func__); 
+	pr_info("%s\n", __func__); //HTC_AUD_MOD
 
 	if (handle == NULL) {
 		pr_err("%s: handle is NULL\n", __func__);
@@ -284,7 +284,7 @@ static int voice_svc_reg(char *svc, uint32_t src_port,
 		ret = -EFAULT;
 		goto done;
 	}
-	pr_info("%s: Register %s successful\n", 
+	pr_info("%s: Register %s successful\n", // HTC_AUD_MOD
 		__func__, svc);
 done:
 	return ret;
@@ -294,7 +294,7 @@ static int voice_svc_dereg(char *svc, void **handle)
 {
 	int ret = 0;
 
-	pr_info("%s\n", __func__); 
+	pr_info("%s\n", __func__); // HTC_AUD_MOD
 
 	if (handle == NULL) {
 		pr_err("%s: handle is NULL\n", __func__);
@@ -316,7 +316,7 @@ static int voice_svc_dereg(char *svc, void **handle)
 		goto done;
 	}
 	*handle = NULL;
-	pr_info("%s: deregister %s successful\n", __func__, svc); 
+	pr_info("%s: deregister %s successful\n", __func__, svc); // HTC_AUD_MOD
 
 done:
 	return ret;
@@ -338,8 +338,8 @@ static int process_reg_cmd(struct voice_svc_register *apr_reg_svc,
 		svc = VOICE_SVC_CVS_STR;
 		handle = &prtd->apr_q6_cvs;
 	} else {
-		pr_err("%s: Invalid Service: %.*s\n", __func__,
-			MAX_APR_SERVICE_NAME_LEN, apr_reg_svc->svc_name);
+		pr_err("%s: Invalid Service: %s\n", __func__,
+		       apr_reg_svc->svc_name);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -365,17 +365,7 @@ static ssize_t voice_svc_write(struct file *file, const char __user *buf,
 
 	pr_debug("%s\n", __func__);
 
-	/*
-	 * Check if enough memory is allocated to parse the message type.
-	 * Will check there is enough to hold the payload later.
-	 */
-	if (count >= sizeof(struct voice_svc_write_msg)) {
-		data = kmalloc(count, GFP_KERNEL);
-	} else {
-		pr_debug("%s: invalid data size\n", __func__);
-		ret = -EINVAL;
-		goto done;
-	}
+	data = kmalloc(count, GFP_KERNEL);
 
 	if (data == NULL) {
 		pr_err("%s: data kmalloc failed.\n", __func__);
@@ -393,7 +383,7 @@ static ssize_t voice_svc_write(struct file *file, const char __user *buf,
 	}
 
 	cmd = data->msg_type;
-	prtd = (struct voice_svc_prvt *) file->private_data;
+	prtd = (struct voice_svc_prvt *)file->private_data;
 	if (prtd == NULL) {
 		pr_err("%s: prtd is NULL\n", __func__);
 
@@ -403,13 +393,9 @@ static ssize_t voice_svc_write(struct file *file, const char __user *buf,
 
 	switch (cmd) {
 	case MSG_REGISTER:
-		/*
-		 * Check that count reflects the expected size to ensure
-		 * sufficient memory was allocated. Since voice_svc_register
-		 * has a static size, this should be exact.
-		 */
-		if (count == (sizeof(struct voice_svc_write_msg) +
-			      sizeof(struct voice_svc_register))) {
+		if (count  >=
+				(sizeof(struct voice_svc_register) +
+				sizeof(*data))) {
 			ret = process_reg_cmd(
 			(struct voice_svc_register *)data->payload, prtd);
 			if (!ret)
@@ -421,13 +407,8 @@ static ssize_t voice_svc_write(struct file *file, const char __user *buf,
 		}
 		break;
 	case MSG_REQUEST:
-		/*
-		 * Check that count reflects the expected size to ensure
-		 * sufficient memory was allocated. Since voice_svc_cmd_request
-		 * has a variable size, check the minimum value count must be.
-		 */
-		if (count >= (sizeof(struct voice_svc_write_msg) +
-			      sizeof(struct voice_svc_cmd_request))) {
+	if (count >= (sizeof(struct voice_svc_cmd_request) +
+					sizeof(*data))) {
 		ret = voice_svc_send_req(
 			(struct voice_svc_cmd_request *)data->payload, prtd);
 		if (!ret)
@@ -578,7 +559,7 @@ static int voice_svc_open(struct inode *inode, struct file *file)
 {
 	struct voice_svc_prvt *prtd = NULL;
 
-	pr_info("%s\n", __func__); 
+	pr_info("%s\n", __func__); // HTC_AUD_MOD
 
 	prtd = kmalloc(sizeof(struct voice_svc_prvt), GFP_KERNEL);
 
@@ -618,7 +599,7 @@ static int voice_svc_release(struct inode *inode, struct file *file)
 	char *svc_name = NULL;
 	void **handle = NULL;
 
-	pr_info("%s ++\n", __func__); 
+	pr_info("%s ++\n", __func__); // HTC_AUD_MOD
 
 	prtd = (struct voice_svc_prvt *)file->private_data;
 	if (prtd == NULL) {
@@ -629,8 +610,8 @@ static int voice_svc_release(struct inode *inode, struct file *file)
 	}
 
 	if (prtd->apr_q6_cvs != NULL) {
-		pr_info("%s: voice_svc_dereg VOICE_SVC_CVS_STR\n", __func__); 
-		svc_name = VOICE_SVC_CVS_STR; 
+		pr_info("%s: voice_svc_dereg VOICE_SVC_CVS_STR\n", __func__); // HTC_AUD_ADD
+		svc_name = VOICE_SVC_CVS_STR; // HTC_AUD_MOD
 		handle = &prtd->apr_q6_cvs;
 		ret = voice_svc_dereg(svc_name, handle);
 		if (ret)
@@ -638,7 +619,7 @@ static int voice_svc_release(struct inode *inode, struct file *file)
 	}
 
 	if (prtd->apr_q6_mvm != NULL) {
-		pr_info("%s: voice_svc_dereg VOICE_SVC_MVM_STR\n", __func__); 
+		pr_info("%s: voice_svc_dereg VOICE_SVC_MVM_STR\n", __func__); // HTC_AUD_ADD
 		svc_name = VOICE_SVC_MVM_STR;
 		handle = &prtd->apr_q6_mvm;
 		ret = voice_svc_dereg(svc_name, handle);
@@ -649,7 +630,7 @@ static int voice_svc_release(struct inode *inode, struct file *file)
 	spin_lock_irqsave(&prtd->response_lock, spin_flags);
 
 	while (!list_empty(&prtd->response_queue)) {
-		pr_info("%s: Remove item from response queue\n", __func__); 
+		pr_info("%s: Remove item from response queue\n", __func__); // HTC_AUD_MOD
 
 		resp = list_first_entry(&prtd->response_queue,
 					struct apr_response_list, list);
@@ -663,7 +644,7 @@ static int voice_svc_release(struct inode *inode, struct file *file)
 	kfree(file->private_data);
 	file->private_data = NULL;
 
-	pr_info("%s --\n", __func__); 
+	pr_info("%s --\n", __func__); // HTC_AUD_MOD
 
 done:
 	return ret;

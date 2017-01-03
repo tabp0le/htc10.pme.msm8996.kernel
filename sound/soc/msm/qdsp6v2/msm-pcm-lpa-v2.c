@@ -573,6 +573,8 @@ static int msm_pcm_hw_params(struct snd_pcm_substream *substream,
 				FORMAT_LINEAR_PCM, bits_per_sample);
 		if (ret < 0) {
 			pr_err("%s: pcm out open failed\n", __func__);
+			q6asm_audio_client_free(prtd->audio_client);
+			prtd->audio_client = NULL;
 			return -ENOMEM;
 		}
 	}
