@@ -36,10 +36,8 @@ static struct acoustic_ops *the_ops = NULL;
 static struct switch_dev sdev_beats;
 static struct switch_dev sdev_dq;
 static struct switch_dev sdev_fm;
-extern struct wake_lock compr_lpa_q6_cb_wakelock;
 static struct wake_lock htc_acoustic_wakelock;
 static struct wake_lock htc_acoustic_wakelock_timeout;
-static struct wake_lock htc_acoustic_tfa_wakelock;
 struct avcs_ctl {
        atomic_t ref_cnt;
        void *apr;
@@ -100,15 +98,15 @@ void set_pinctrl_ftm_mode(int ftm_enable)
 	}
 
 	if (ftm_enable) {
-		
+		//ftm enable, go ftm control
 		ret = pinctrl_select_state(ftm_pinctrl, ftm_state);
 	}
 	else if(aux_pcm_active){
-		
+		//AUX PCM active, go default control
 		ret = pinctrl_pm_select_default_state(ftm_dev);
 	}
 	else {
-		
+		//AUX PCM non-active, go sleep control
 		ret = pinctrl_pm_select_sleep_state(ftm_dev);
 	}
 
@@ -220,6 +218,8 @@ acoustic_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (_IOC_TYPE(cmd) != ACOUSTIC_IOCTL_MAGIC)
 		return -ENOTTY;
 
+//	if (_IOC_SIZE(cmd) > sizeof(struct tfa9895_i2c_buffer))
+//		return -EINVAL;
 
 	us32_size = _IOC_SIZE(cmd);
 
@@ -313,7 +313,6 @@ acoustic_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				}
 				if (s32_value == 1) {
 					wake_lock_timeout(&htc_acoustic_wakelock, 60*HZ);
-					wake_unlock(&compr_lpa_q6_cb_wakelock );
 				} else {
 					wake_lock_timeout(&htc_acoustic_wakelock_timeout, 1*HZ);
 					wake_unlock(&htc_acoustic_wakelock);
@@ -324,26 +323,8 @@ acoustic_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 			break;
 		}
-		case ACOUSTIC_TFA_CONTROL_WAKELOCK: {
-			if(sizeof(s32_value) <= us32_size) {
-				memcpy((void*)&s32_value, (void*)buf, sizeof(s32_value));
-				if (s32_value < -1 || s32_value > 1) {
-					rc = -EINVAL;
-					break;
-				}
-				if (s32_value == 1) {
-					wake_lock_timeout(&htc_acoustic_tfa_wakelock, 15*HZ);
-				} else {
-					wake_unlock(&htc_acoustic_tfa_wakelock);
-				}
-			} else {
-				E("%s %d: ACOUSTIC_TFA_CONTROL_WAKELOCK error.\n", __func__, __LINE__);
-				rc = -EINVAL;
-			}
-			break;
-		}
 		case  ACOUSTIC_ADSP_CMD: {
-			
+			//uint16_t cmd_size;
 			struct avcs_crash_params config;
 			config.hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
 						APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
@@ -457,7 +438,6 @@ static int __init acoustic_init(void)
 	ret = misc_register(&acoustic_misc);
 	wake_lock_init(&htc_acoustic_wakelock, WAKE_LOCK_SUSPEND, "htc_acoustic");
 	wake_lock_init(&htc_acoustic_wakelock_timeout, WAKE_LOCK_SUSPEND, "htc_acoustic_timeout");
-	wake_lock_init(&htc_acoustic_tfa_wakelock, WAKE_LOCK_SUSPEND, "htc_acoustic_tfa");
 
 	if (ret < 0) {
 		pr_err("failed to register misc device!\n");
