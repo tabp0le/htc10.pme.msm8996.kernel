@@ -31,7 +31,7 @@
 #include <dt-bindings/clock/msm-clocks-8996.h>
 #include <dt-bindings/clock/msm-clocks-hwio-8996.h>
 
-#include "vdd-level-8994.h"
+#include "vdd-level-8996.h"
 
 static void __iomem *virt_base;
 static void __iomem *virt_dbgbase;
@@ -1339,6 +1339,7 @@ static struct rcg_clk pdm2_clk_src = {
 	},
 };
 
+/* Frequency table might change later */
 static struct clk_freq_tbl ftbl_qspi_ser_clk_src[] = {
 	F(  75000000,  gpll0_out_main,    8,    0,     0),
 	F( 150000000,  gpll0_out_main,    4,    0,     0),
@@ -3666,6 +3667,14 @@ static int msm_gcc_8996_probe(struct platform_device *pdev)
 	regval = readl_relaxed(virt_base + GCC_APCS_CLOCK_BRANCH_ENA_VOTE);
 	regval |= BIT(21);
 	writel_relaxed(regval, virt_base + GCC_APCS_CLOCK_BRANCH_ENA_VOTE);
+
+	/*
+	 * Set the HMSS_AHB_CLK_SLEEP_ENA bit to allow the hmss_ahb_clk to be
+	 * turned off by hardware during certain apps low power modes.
+	 */
+	regval = readl_relaxed(virt_base + GCC_APCS_CLOCK_SLEEP_ENA_VOTE);
+	regval |= BIT(21);
+	writel_relaxed(regval, virt_base + GCC_APCS_CLOCK_SLEEP_ENA_VOTE);
 
 	vdd_dig.vdd_uv[1] = RPM_REGULATOR_CORNER_SVS_KRAIT;
 	vdd_dig.regulator[0] = devm_regulator_get(&pdev->dev, "vdd_dig");

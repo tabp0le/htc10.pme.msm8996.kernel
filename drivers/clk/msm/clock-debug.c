@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2007-2014, 2016, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -718,6 +718,11 @@ int htc_clock_status_debug_init(struct clk_lookup *table, size_t size)
         return err;
 }
 #endif
+
+/**
+ * clock_debug_init() - Initialize clock debugfs
+ * Lock clk_debug_lock before invoking this function.
+ */
 
 static int clock_debug_init(void)
 {

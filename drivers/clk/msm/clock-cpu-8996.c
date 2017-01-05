@@ -39,7 +39,7 @@
 #include <dt-bindings/clock/msm-clocks-8996.h>
 
 #include "clock.h"
-#include "vdd-level-8994.h"
+#include "vdd-level-8996.h"
 
 enum {
 	APC0_PLL_BASE,
@@ -676,7 +676,7 @@ static int cpu_clk_8996_set_rate(struct clk *c, unsigned long rate)
 {
 	struct cpu_clk_8996 *cpuclk = to_cpu_clk_8996(c);
 	int ret, err_ret;
-	unsigned long alt_pll_prev_rate;
+	unsigned long alt_pll_prev_rate = 0;
 	unsigned long alt_pll_rate;
 	unsigned long n_alt_freqs = cpuclk->n_alt_pll_freqs;
 	bool on_acd_leg = rate > MAX_PLL_MAIN_FREQ;
