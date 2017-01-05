@@ -1277,10 +1277,6 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	else
 		req->zero = 1;
 
-	/* use zlp framing on tx for strict CDC-Ether conformance,
-	 * though any robust network rx path ignores extra padding.
-	 * and some hardware doesn't like to write zlps.
-	 */
 	if (req->zero && !dev->zlp && (length % in->maxpacket) == 0) {
 		req->zero = 0;
 		length++;
