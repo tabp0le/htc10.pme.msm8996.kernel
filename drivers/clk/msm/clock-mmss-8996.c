@@ -30,7 +30,7 @@
 #include <dt-bindings/clock/msm-clocks-8996.h>
 #include <dt-bindings/clock/msm-clocks-hwio-8996.h>
 
-#include "vdd-level-8994.h"
+#include "vdd-level-8996.h"
 #include "clock.h"
 
 static void __iomem *virt_base;
