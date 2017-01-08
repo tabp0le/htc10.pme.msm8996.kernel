@@ -18,7 +18,7 @@
 
 /* Chill version macros */
 #define CHILL_VERSION_MAJOR			(2)
-#define CHILL_VERSION_MINOR			(3)
+#define CHILL_VERSION_MINOR			(7)
 
 /* Chill governor macros */
 #define DEF_FREQUENCY_UP_THRESHOLD		(85)
@@ -84,12 +84,17 @@ static void cs_check_cpu(int cpu, unsigned int load)
 		if (policy->cur == policy->min)
 			return;
 
+		/* reduce boost count with frequency */
+		if (boost_counter < 0)
+			boost_counter--;
+
 		freq_target = get_freq_target(cs_tuners, policy);
 		if (dbs_info->requested_freq > freq_target)
 			dbs_info->requested_freq -= freq_target;
-		else
+		else {
 			dbs_info->requested_freq = policy->min;
-
+			boost_counter = 0;
+		}
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 				CPUFREQ_RELATION_L);
 		return;
@@ -104,8 +109,10 @@ static void cs_check_cpu(int cpu, unsigned int load)
 		freq_target = get_freq_target(cs_tuners, policy);
 		if (dbs_info->requested_freq > freq_target)
 			dbs_info->requested_freq -= freq_target;
-		else
+		else {
 			dbs_info->requested_freq = policy->min;
+			boost_counter = 0;
+		}
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 				CPUFREQ_RELATION_L);
@@ -127,15 +134,10 @@ static void cs_check_cpu(int cpu, unsigned int load)
 		if (cs_tuners->boost_enabled && boost_counter >= cs_tuners->boost_count) {
 			dbs_info->requested_freq = policy->max;
 			boost_counter = 0;
-		} else
+		} else {
 			dbs_info->requested_freq += get_freq_target(cs_tuners, policy);
-
- 		/* Make sure max hasn't been reached, otherwise increment boost_counter */
-		if (dbs_info->requested_freq >= policy->max) {
-			dbs_info->requested_freq = policy->max;
-			boost_counter = 0;
-		} else
 			boost_counter++;
+		};
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 			CPUFREQ_RELATION_H);
@@ -342,10 +344,7 @@ static ssize_t store_boost_count(struct dbs_data *dbs_data, const char *buf,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (input >= 5)
-		input = 5;
-
-	if ((input = 0))
+	if (input < 1)
 		input = 0;
 
 	cs_tuners->boost_count = input;
