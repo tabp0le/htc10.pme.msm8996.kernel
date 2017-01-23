@@ -20,7 +20,6 @@ unexport LC_ALL
 LC_COLLATE=C
 LC_NUMERIC=C
 export LC_COLLATE LC_NUMERIC
-
 # Avoid interference with shell env settings
 unexport GREP_OPTIONS
 
@@ -708,6 +707,7 @@ else
 # This warning generated too much noise in a regular build.
 # Use make W=1 to enable this warning (see scripts/Makefile.build)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
+endif
 
 #ifdef CONFIG_FRAME_POINTER
 #KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
