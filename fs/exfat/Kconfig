@@ -1,0 +1,50 @@
+config EXFAT_FS
+	tristate "exFAT fs support"
+	select NLS
+	help
+	  This adds support for the exFAT file system.
+
+config EXFAT_DISCARD
+	bool "enable discard support"
+	depends on EXFAT_FS
+	default y
+
+config EXFAT_DELAYED_SYNC
+	bool "enable delayed sync"
+	depends on EXFAT_FS
+	default n
+
+config EXFAT_KERNEL_DEBUG
+	bool "enable kernel debug features via ioctl"
+	depends on EXFAT_FS
+	default n
+
+config EXFAT_DEBUG_MSG
+	bool "print debug messages"
+	depends on EXFAT_FS
+	default n
+
+config EXFAT_DEFAULT_CODEPAGE
+	int "Default codepage for exFAT"
+	default 437
+	depends on EXFAT_FS
+	help
+	  This option should be set to the codepage of your exFAT filesystems.
+
+config EXFAT_DEFAULT_IOCHARSET
+	string "Default iocharset for exFAT"
+	default "utf8"
+	depends on EXFAT_FS
+	help
+	  Set this to the default input/output character set you'd like exFAT to use.
+	  
+config EXFAT_COMPAT_TUXERA
+	bool "Tuxera compatibility for exFAT"
+	depends on EXFAT_FS
+	help
+	  Say Y here to have the exFAT driver also register as texfat
+	  and support extra mount options for drop-in replacement on
+	  systems previously using Tuxera's commercial exFAT driver.
+
+	  If you are building exFAT as a module, this will change
+	  the module's name to texfat.	  
