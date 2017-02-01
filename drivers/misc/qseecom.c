@@ -2078,7 +2078,7 @@ static int qseecom_load_app(struct qseecom_dev_handle *data, void __user *argp)
 		return -EFAULT;
 	}
 
-	
+	/* Check and load cmnlib */
 	mutex_lock(&cmnlib_access_lock);
 	if (qseecom.qsee_version > QSEEE_VERSION_00) {
 		if (!qseecom.commonlib_loaded &&
@@ -4094,7 +4094,7 @@ int qseecom_start_app(struct qseecom_handle **handle,
 	data->client.user_virt_sb_base = 0;
 	data->client.ihandle = NULL;
 
-	
+	/* Allocate sglistinfo buffer for kernel client */
 	data->sglistinfo_ptr = kzalloc(SGLISTINFO_TABLE_SIZE, GFP_KERNEL);
 	if (!(data->sglistinfo_ptr)) {
 		kfree(data);
