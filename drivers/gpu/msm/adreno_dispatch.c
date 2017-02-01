@@ -1817,7 +1817,7 @@ static int dispatcher_do_fault(struct adreno_device *adreno_dev)
 		}
 	}
 
-	if (!adreno_cmdqueue_is_empty(dispatch_q)) {
+	if (dispatch_q && !adreno_cmdqueue_is_empty(dispatch_q)) {
 		cmdbatch = dispatch_q->cmd_q[dispatch_q->head];
 		fault_pid = cmdbatch->context->proc_priv->pid;
 		trace_adreno_cmdbatch_fault(cmdbatch, fault);

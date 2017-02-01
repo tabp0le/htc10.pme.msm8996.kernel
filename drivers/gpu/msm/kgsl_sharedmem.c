@@ -591,12 +591,11 @@ int kgsl_cache_range_op(struct kgsl_memdesc *memdesc, uint64_t offset,
 	void *addr = (memdesc->hostptr) ?
 		memdesc->hostptr : (void *) memdesc->useraddr;
 
-	/* Make sure that size is non-zero */
-	if (!size)
+	if (size == 0 || size > UINT_MAX)
 		return -EINVAL;
 
-	/* Make sure that the offset + size isn't bigger than we can handle */
-	if ((offset + size) > ULONG_MAX)
+	/* Make sure that the offset + size does not overflow */
+	if ((offset + size < offset) || (offset + size < size))
 		return -ERANGE;
 
 	/* Make sure the offset + size do not overflow the address */
@@ -845,6 +844,11 @@ kgsl_sharedmem_page_alloc_user(struct kgsl_memdesc *memdesc,
 		&kgsl_driver.stats.page_alloc_max);
 	if (memdesc->private)
 		kgsl_process_add_stats(memdesc->private, KGSL_MEM_ENTRY_PAGE_ALLOC, size);
+
+	/*
+	 * Zero out the pages.
+	 */
+	kgsl_zero_pages(memdesc->pages, pcount);
 
 	/*
 	 * Zero out the pages.
