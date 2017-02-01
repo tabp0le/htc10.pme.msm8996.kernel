@@ -57,6 +57,9 @@
 static unsigned int debug_quirks = 0;
 static unsigned int debug_quirks2;
 
+/*
+ * Allocate memory for SD card
+ */
 extern struct scatterlist *cur_sg;
 extern struct scatterlist *prev_sg;
 extern struct scatterlist *mmc_alloc_sg(int sg_len, int *err);
@@ -2896,6 +2899,11 @@ static void sdhci_underclocking(struct sdhci_host *host)
 }
 
 
+/*****************************************************************************\
+ *                                                                           *
+ * Interrupt handling                                                        *
+ *                                                                           *
+\*****************************************************************************/
 
 static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
 {
@@ -4209,10 +4217,10 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (caps[1] & SDHCI_USE_SDR50_TUNING)
 		host->flags |= SDHCI_SDR50_NEEDS_TUNING;
 
-	
+	/* Back up UHS caps for recover host capabilities when insert SD card */
 	mmc->caps_uhs = mmc->caps;
 
-	
+	/* Does the host need tuning for SDR104 / HS200? */
 	if (mmc->caps2 & MMC_CAP2_HS200)
 		host->flags |= SDHCI_SDR104_NEEDS_TUNING;
 
@@ -4332,6 +4340,10 @@ int sdhci_add_host(struct sdhci_host *host)
 	else/* PIO */
 		mmc->max_segs = 128;
 
+	/*
+	 * Allocat memory at boot time.
+	 * To avoid memory leak problem.
+	 */
 	if (mmc_is_sd_host(mmc)) {
 		cur_sg = mmc_alloc_sg(mmc->max_segs, &ret);
 		if (ret)

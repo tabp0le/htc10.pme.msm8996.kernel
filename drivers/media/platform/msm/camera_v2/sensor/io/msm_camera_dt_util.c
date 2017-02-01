@@ -282,38 +282,6 @@ int msm_sensor_get_sub_module_index(struct device_node *of_node,
 		src_node = NULL;
 	}
 
-	src_node = of_parse_phandle(of_node, "qcom,ir-led-src", 0);
-	if (!src_node) {
-		CDBG("%s:%d src_node NULL\n", __func__, __LINE__);
-	} else {
-		rc = of_property_read_u32(src_node, "cell-index", &val);
-		CDBG("%s qcom,ir led cell index %d, rc %d\n", __func__,
-			val, rc);
-		if (rc < 0) {
-			pr_err("%s:%d failed %d\n", __func__, __LINE__, rc);
-			goto ERROR;
-		}
-		sensor_info->subdev_id[SUB_MODULE_IR_LED] = val;
-		of_node_put(src_node);
-		src_node = NULL;
-	}
-
-	src_node = of_parse_phandle(of_node, "qcom,ir-cut-src", 0);
-	if (!src_node) {
-		CDBG("%s:%d src_node NULL\n", __func__, __LINE__);
-	} else {
-		rc = of_property_read_u32(src_node, "cell-index", &val);
-		CDBG("%s qcom,ir cut cell index %d, rc %d\n", __func__,
-			val, rc);
-		if (rc < 0) {
-			pr_err("%s:%d failed %d\n", __func__, __LINE__, rc);
-			goto ERROR;
-		}
-		sensor_info->subdev_id[SUB_MODULE_IR_CUT] = val;
-		of_node_put(src_node);
-		src_node = NULL;
-	}
-
 	rc = of_property_read_u32(of_node, "qcom,strobe-flash-sd-index", &val);
 	if (rc != -EINVAL) {
 		CDBG("%s qcom,strobe-flash-sd-index %d, rc %d\n", __func__,
@@ -1416,7 +1384,7 @@ int msm_camera_power_up(struct msm_camera_power_ctrl_t *ctrl,
 {
 	int rc = 0, index = 0, no_gpio = 0, ret = 0;
 	struct msm_sensor_power_setting *power_setting = NULL;
-	pr_info("[CAM]%s: +\n", __func__); 
+	pr_info("[CAM]%s: +\n", __func__); //HTC_ADD
 	CDBG("%s:%d\n", __func__, __LINE__);
 	if (!ctrl || !sensor_i2c_client) {
 		pr_err("failed ctrl %pK sensor_i2c_client %pK\n", ctrl,
@@ -1549,7 +1517,7 @@ int msm_camera_power_up(struct msm_camera_power_ctrl_t *ctrl,
 		}
 	}
 	CDBG("%s exit\n", __func__);
-	pr_info("[CAM]%s: -\n", __func__); 
+	pr_info("[CAM]%s: -\n", __func__); //HTC_ADD
 	return 0;
 power_up_failed:
 	pr_err("%s:%d failed\n", __func__, __LINE__);
@@ -1642,7 +1610,7 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 	int index = 0, ret = 0;
 	struct msm_sensor_power_setting *pd = NULL;
 	struct msm_sensor_power_setting *ps;
-	pr_info("[CAM]%s: +\n", __func__); 
+	pr_info("[CAM]%s: +\n", __func__); //HTC_ADD
 	CDBG("%s:%d\n", __func__, __LINE__);
 	if (!ctrl || !sensor_i2c_client) {
 		pr_err("failed ctrl %pK sensor_i2c_client %pK\n", ctrl,
@@ -1743,7 +1711,7 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 		ctrl->gpio_conf->cam_gpio_req_tbl,
 		ctrl->gpio_conf->cam_gpio_req_tbl_size, 0);
 	CDBG("%s exit\n", __func__);
-	pr_info("[CAM]%s: -\n", __func__); 
+	pr_info("[CAM]%s: -\n", __func__); //HTC_ADD
 	return 0;
 }
 

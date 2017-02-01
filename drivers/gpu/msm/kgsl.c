@@ -4019,7 +4019,7 @@ int kgsl_device_platform_probe(struct kgsl_device *device)
 	/* Initialize the memory pools */
 	kgsl_init_page_pools();
 
-	
+	/* Initialize htc feature */
 	kgsl_device_htc_init(device);
 
 	return 0;
