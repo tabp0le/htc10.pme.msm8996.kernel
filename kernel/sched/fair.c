@@ -2203,12 +2203,12 @@ static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 
 	return shares;
 }
-#else 
+#else /* CONFIG_SMP */
 static inline long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 {
 	return tg->shares;
 }
-#endif 
+#endif /* CONFIG_SMP */
 static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 			    unsigned long weight)
 {
@@ -2430,6 +2430,7 @@ unsigned int __read_mostly sched_freq_aggregate_threshold = 0;
  */
 unsigned int __read_mostly sched_upmigrate;
 unsigned int __read_mostly sysctl_sched_upmigrate_pct = 80;
+
 
 /*
  * Big tasks, once migrated, will need to drop their bandwidth
@@ -2704,6 +2705,14 @@ int over_schedule_budget(int cpu)
 	return (rq->load_avg > rq->budget)? 1 : 0;
 }
 
+/*
+ * Task will fit on a cpu if it's bandwidth consumption on that cpu
+ * will be less than sched_upmigrate. A big task that was previously
+ * "up" migrated will be considered fitting on "little" cpu if its
+ * bandwidth consumption on "little" cpu will be less than
+ * sched_downmigrate. This will help avoid frequenty migrations for
+ * tasks with load close to the upmigrate threshold
+ */
 
 static int task_load_will_fit(struct task_struct *p, u64 task_load, int cpu)
 {
@@ -3306,6 +3315,7 @@ bias_to_prev_cpu(struct cpu_select_env *env, struct cluster_cpu_stats *stats)
 	 * p->last_switch_out_ts can denote last preemption time as well as
 	 * last sleep time.
 	 */
+
 	if (task->ravg.mark_start - task->last_switch_out_ts >=
 					sched_short_sleep_task_threshold)
 		return false;
@@ -3942,6 +3952,7 @@ int sched_hmp_proc_update_handler(struct ctl_table *table, int write,
 			goto done;
 		}
 	}
+
 
 	/*
 	 * Big task tunable change will need to re-classify tasks on
@@ -7448,6 +7459,13 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 
 	lockdep_assert_held(&env->src_rq->lock);
 
+	/*
+	 * We do not migrate tasks that are:
+	 * 1) throttled_lb_pair, or
+	 * 2) cannot be migrated to this CPU due to cpus_allowed, or
+	 * 3) running (obviously), or
+	 * 4) are cache-hot on their current CPU.
+	 */
 	if (over_schedule_budget(env->dst_cpu))
 		return 0;
 
@@ -9387,6 +9405,9 @@ static int idle_balance(struct rq *this_rq)
 	if (over_schedule_budget(this_cpu))
 		goto out;
 
+	/*
+	 * Drop the rq->lock, but keep IRQ/preempt disabled.
+	 */
 	raw_spin_unlock(&this_rq->lock);
 
 	update_blocked_averages(this_cpu);

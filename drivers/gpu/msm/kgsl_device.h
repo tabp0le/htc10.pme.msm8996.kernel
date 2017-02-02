@@ -286,7 +286,8 @@ struct kgsl_device {
 
 	/* Number of active contexts seen globally for this device */
 	int active_context_count;
-	
+
+	/* used to switch htc decision for gpu fault */
 	int gpu_fault_no_panic;
 	struct kobject *gpu_sysfs_kobj;
 };

@@ -422,7 +422,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	struct snd_card *card;
 	struct snd_usb_audio *chip;
 	int err, len;
-	char component[18]; 
+	char component[18]; //HTC_AUD klockwork ID: 1110
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_usb_audio_dev_free,
 	};
@@ -647,6 +647,7 @@ snd_usb_audio_probe(struct usb_device *dev,
 	usb_chip[chip->index] = chip;
 	chip->num_interfaces++;
 	chip->probing = 0;
+	intf->needs_remote_wakeup = 1;
 	mutex_unlock(&register_mutex);
 	return chip;
 

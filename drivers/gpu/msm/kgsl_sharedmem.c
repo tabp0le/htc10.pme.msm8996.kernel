@@ -845,6 +845,9 @@ kgsl_sharedmem_page_alloc_user(struct kgsl_memdesc *memdesc,
 	if (memdesc->private)
 		kgsl_process_add_stats(memdesc->private, KGSL_MEM_ENTRY_PAGE_ALLOC, size);
 
+	/*
+	 * Zero out the pages.
+	 */
 	kgsl_zero_pages(memdesc->pages, pcount);
 
 	/*

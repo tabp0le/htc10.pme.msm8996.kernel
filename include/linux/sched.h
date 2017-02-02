@@ -1682,7 +1682,7 @@ struct task_struct {
 	 */
 	unsigned long numa_faults_locality[2];
 
-#endif 
+#endif /* CONFIG_NUMA_BALANCING */
 
 	struct rcu_head rcu;
 
@@ -2999,6 +2999,11 @@ static inline unsigned long get_preempt_disable_ip(struct task_struct *p)
 }
 #endif
 
+/*
+ * Does a critical section need to be broken due to another
+ * task waiting?: (technically does not depend on CONFIG_PREEMPT,
+ * but a general need for low latency)
+ */
 static inline int spin_needbreak(spinlock_t *lock)
 {
 #ifdef CONFIG_PREEMPT

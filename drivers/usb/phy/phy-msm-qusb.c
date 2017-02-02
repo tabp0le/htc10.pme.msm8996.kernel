@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -62,6 +62,8 @@
 #define CLAMP_N_EN			BIT(5)
 #define FREEZIO_N			BIT(1)
 #define POWER_DOWN			BIT(0)
+
+#define QUSB2PHY_PORT_TEST_CTRL		0xB8
 
 #define QUSB2PHY_PORT_UTMI_CTRL1	0xC0
 #define SUSPEND_N			BIT(5)
@@ -299,7 +301,7 @@ err:
 static int qusb_phy_enable_power(struct qusb_phy *qphy, bool on)
 {
 	int ret = 0;
-	static bool L24_keep = false; 
+	static bool L24_keep = false; /*++ 2015/06/23, USB Team, PCN00002 ++*/
 
 	dev_dbg(qphy->phy.dev, "%s turn %s regulators. power_enabled:%d\n",
 			__func__, on ? "on" : "off", qphy->power_enabled);
@@ -338,7 +340,7 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy, bool on)
 				goto unset_vdda18;
 			}
 		}
-	} else { 
+	} else { // For new logic design
 		ret = regulator_enable(qphy->vdda18);
 		if (ret) {
 			dev_err(qphy->phy.dev, "Unable to enable vdda18:%d\n", ret);
@@ -359,6 +361,7 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy, bool on)
 				"Unable to set voltage for vdda33:%d\n", ret);
 		goto put_vdda33_lpm;
 	}
+/*++ 2015/06/23, USB Team, PCN00002 ++*/
 	if (qphy->usb_phy_always_on) {
 		if (!L24_keep) {
 			ret = regulator_enable(qphy->vdda33);
@@ -368,7 +371,7 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy, bool on)
 			}
 			L24_keep = true;
 		}
-	} else { 
+	} else { // For new logic design
 		ret = regulator_enable(qphy->vdda33);
 		if (ret) {
 			dev_err(qphy->phy.dev, "Unable to enable vdda33:%d\n", ret);
@@ -376,6 +379,7 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy, bool on)
 		}
 		L24_keep = true;
 	}
+/*-- 2015/06/23, USB Team, PCN00002 --*/
 
 	qphy->power_enabled = true;
 
@@ -383,14 +387,14 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy, bool on)
 	return ret;
 
 disable_vdda33:
-	if (!qphy->usb_phy_always_on) { 
+	if (!qphy->usb_phy_always_on) { // For new logic design
 		ret = regulator_disable(qphy->vdda33);
 		if (ret)
 			dev_err(qphy->phy.dev, "Unable to disable vdda33:%d\n", ret);
 	}
 
 unset_vdd33:
-	if (!qphy->usb_phy_always_on) { 
+	if (!qphy->usb_phy_always_on) { // For new logic design
 		ret = regulator_set_voltage(qphy->vdda33, 0, QUSB2PHY_3P3_VOL_MAX);
 		if (ret)
 			dev_err(qphy->phy.dev,
@@ -403,13 +407,13 @@ put_vdda33_lpm:
 		dev_err(qphy->phy.dev, "Unable to set (0) HPM of vdda33\n");
 
 disable_vdda18:
-	if (!qphy->usb_phy_always_on) { 
+	if (!qphy->usb_phy_always_on) { // For new logic design
 		ret = regulator_disable(qphy->vdda18);
 		if (ret)
 			dev_err(qphy->phy.dev, "Unable to disable vdda18:%d\n", ret);
 	}
 unset_vdda18:
-	if (!qphy->usb_phy_always_on) { 
+	if (!qphy->usb_phy_always_on) { // For new logic design
 		ret = regulator_set_voltage(qphy->vdda18, 0, QUSB2PHY_1P8_VOL_MAX);
 		if (ret)
 			dev_err(qphy->phy.dev,
@@ -813,8 +817,23 @@ static int qusb_phy_init(struct usb_phy *phy)
 		qusb_phy_write_seq(qphy->base, qphy->qusb_phy_init_seq,
 				qphy->init_seq_len, 0);
 
+	/*
+	 * Check for EFUSE value only if tune2_efuse_reg is available
+	 * and try to read EFUSE value only once i.e. not every USB
+	 * cable connect case.
+	 */
+	/* Remove this part due to we don't need to overwrite this register from efuse.
+	if (qphy->tune2_efuse_reg) {
+		if (!qphy->tune2_val)
+			qusb_phy_get_tune2_param(qphy);
 
-	
+		pr_debug("%s(): Programming TUNE2 parameter as:%x\n", __func__,
+				qphy->tune2_val);
+		writel_relaxed(qphy->tune2_val,
+				qphy->base + QUSB2PHY_PORT_TUNE2);
+	}*/
+
+	/* If tune1 modparam set, override tune1 value */
 	if (tune1) {
 		pr_debug("%s(): (modparam) TUNE1 val:0x%02x\n",
 						__func__, tune1);
@@ -830,7 +849,7 @@ static int qusb_phy_init(struct usb_phy *phy)
 				qphy->base + QUSB2PHY_PORT_TUNE2);
 	}
 
-	
+	/* If tune3 modparam set, override tune3 value */
 	if (tune3) {
 		pr_debug("%s(): (modparam) TUNE3:0x%02x\n",
 						__func__, tune3);
@@ -838,7 +857,7 @@ static int qusb_phy_init(struct usb_phy *phy)
 				qphy->base + QUSB2PHY_PORT_TUNE3);
 	}
 
-	
+	/* If tune4 modparam set, override tune4 value */
 	if (tune4) {
 		pr_debug("%s(): (modparam) TUNE4:0x%02x\n",
 						__func__, tune4);
@@ -846,7 +865,7 @@ static int qusb_phy_init(struct usb_phy *phy)
 				qphy->base + QUSB2PHY_PORT_TUNE4);
 	}
 
-	
+	/* ensure above writes are completed before re-enabling PHY */
 	wmb();
 
 	/* Enable the PHY */
@@ -1043,6 +1062,21 @@ static int qusb_phy_set_suspend(struct usb_phy *phy, int suspend)
 			writel_relaxed(intr_mask,
 				qphy->base + QUSB2PHY_PORT_INTR_CTRL);
 
+			/* enable phy auto-resume */
+			writel_relaxed(0x0C,
+					qphy->base + QUSB2PHY_PORT_TEST_CTRL);
+			/* flush the previous write before next write */
+			wmb();
+			writel_relaxed(0x04,
+				qphy->base + QUSB2PHY_PORT_TEST_CTRL);
+
+
+			dev_dbg(phy->dev, "%s: intr_mask = %x\n",
+			__func__, intr_mask);
+
+			/* Makes sure that above write goes through */
+			wmb();
+
 			qusb_phy_enable_clocks(qphy, false);
 		} else { /* Disconnect case */
 			/* Disable all interrupts */
@@ -1053,10 +1087,18 @@ static int qusb_phy_set_suspend(struct usb_phy *phy, int suspend)
 			wmb();
 
 			qusb_phy_enable_clocks(qphy, false);
+			/* For UHL WL UL, we should not close 1v8 and 3v3 when suspend or
+			 * the touch can not be used. Japan/sprint can close it since
+			 * the problem can be solve.*/
 			if (qphy->tcsr_phy_lvl_shift_keeper)
 				writel_relaxed(0x0,
 					qphy->tcsr_phy_lvl_shift_keeper);
-			qusb_phy_enable_power(qphy, false);
+			/* Do not disable power rails if there is vote for it */
+			if (!qphy->rm_pulldown)
+				qusb_phy_enable_power(qphy, false);
+			else
+				dev_dbg(phy->dev, "race with rm_pulldown. Keep ldo ON\n");
+
 			/*
 			 * Set put_into_high_z_state to true so next USB
 			 * cable connect, DPF_DMF request performs PHY

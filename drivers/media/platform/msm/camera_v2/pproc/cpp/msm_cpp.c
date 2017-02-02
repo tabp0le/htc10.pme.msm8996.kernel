@@ -860,10 +860,10 @@ static int cpp_init_hardware(struct cpp_device *cpp_dev)
 		if (vbif_version == VBIF_VERSION_2_3_0)
 			cpp_dev->hw_info.cpp_hw_version = CPP_HW_VERSION_4_0_0;
 	}
-	
-	
-	
-	
+	//HTC_START
+	//remove log
+	//pr_info("CPP HW Version: 0x%x\n", cpp_dev->hw_info.cpp_hw_version);
+	//HTC_END
 	cpp_dev->hw_info.cpp_hw_caps =
 		msm_camera_io_r(cpp_dev->cpp_hw_base + 0x4);
 
@@ -881,10 +881,10 @@ static int cpp_init_hardware(struct cpp_device *cpp_dev)
 			__func__, rc);
 		goto pwr_collapse_reset;
 	}
-	
-	
-	
-	
+	//HTC_START
+	//remove log
+	//pr_err("stream_cnt:%d\n", cpp_dev->stream_cnt);
+	//HTC_END
 	cpp_dev->stream_cnt = 0;
 	if (cpp_dev->fw_name_bin) {
 		msm_camera_enable_irq(cpp_dev->irq, false);
@@ -2255,7 +2255,7 @@ static int msm_cpp_cfg_frame(struct cpp_device *cpp_dev,
 	struct msm_buf_mngr_info buff_mgr_info, dup_buff_mgr_info;
 	int32_t in_fd;
 	int32_t num_output_bufs = 1;
-	int32_t stripe_base = 0;
+	uint32_t stripe_base = 0;
 	uint32_t stripe_size;
 	uint8_t tnr_enabled;
 	enum msm_camera_buf_mngr_buf_type buf_type =
@@ -2287,6 +2287,13 @@ static int msm_cpp_cfg_frame(struct cpp_device *cpp_dev,
 	if (cpp_frame_msg[new_frame->msg_len - 1] !=
 		MSM_CPP_MSG_ID_TRAILER) {
 		pr_err("Invalid frame message\n");
+		return -EINVAL;
+	}
+
+	if (stripe_base == UINT_MAX || new_frame->num_strips >
+		(UINT_MAX - 1 - stripe_base) / stripe_size) {
+		pr_err("Invalid frame message,num_strips %d is large\n",
+			new_frame->num_strips);
 		return -EINVAL;
 	}
 
