@@ -148,13 +148,6 @@ static void event_handler(uint32_t opcode,
 	case ASM_DATA_EVENT_WRITE_DONE_V2: {
 		pr_debug("ASM_DATA_EVENT_WRITE_DONE_V2\n");
 		pr_debug("Buffer Consumed = 0x%08x\n", *ptrmem);
-
-		if (payload[3]) {
-			pr_err("%s WRITE FAILED w/ err 0x%x\n",
-			       __func__,
-			       payload[3]);
-		}
-
 		prtd->pcm_irq_pos += prtd->pcm_count;
 		if (atomic_read(&prtd->start))
 			snd_pcm_period_elapsed(substream);
@@ -284,8 +277,8 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 	struct msm_audio *prtd = runtime->private_data;
 	struct msm_plat_data *pdata;
 	struct snd_pcm_hw_params *params;
-	int ret = 0;
-	uint16_t bits_per_sample = 16;
+	int ret;
+	uint16_t bits_per_sample;
 	uint16_t sample_word_size;
 
 	pdata = (struct msm_plat_data *)
@@ -352,13 +345,6 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 			prtd->session_id, substream->stream);
 	if (ret) {
 		pr_err("%s: stream reg failed ret:%d\n", __func__, ret);
-		ret = q6asm_cmd(prtd->audio_client, CMD_CLOSE);
-		if (ret < 0) {
-			pr_err("%s: error: ASM close failed returned %d\n",
-				__func__, ret);
-			goto done;
-		}
-		prtd->session_id = 0;
 		return ret;
 	}
 
@@ -375,8 +361,8 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 	prtd->enabled = 1;
 	prtd->cmd_pending = 0;
 	prtd->cmd_interrupt = 0;
-done:
-	return ret;
+
+	return 0;
 }
 
 static int msm_pcm_capture_prepare(struct snd_pcm_substream *substream)
@@ -389,7 +375,7 @@ static int msm_pcm_capture_prepare(struct snd_pcm_substream *substream)
 	struct msm_pcm_routing_evt event;
 	int ret = 0;
 	int i = 0;
-	uint16_t bits_per_sample;
+	uint16_t bits_per_sample = 16;
 	uint16_t sample_word_size;
 
 	pdata = (struct msm_plat_data *)
@@ -447,14 +433,7 @@ static int msm_pcm_capture_prepare(struct snd_pcm_substream *substream)
 				event);
 		if (ret) {
 			pr_err("%s: stream reg failed ret:%d\n", __func__, ret);
-			ret = q6asm_cmd(prtd->audio_client, CMD_CLOSE);
-			if (ret < 0) {
-				pr_err("%s: error: ASM close failed returned %d\n",
-					__func__, ret);
-				goto done;
-			}
-			prtd->session_id = 0;
-			goto done;
+			return ret;
 		}
 	}
 
@@ -502,7 +481,7 @@ static int msm_pcm_capture_prepare(struct snd_pcm_substream *substream)
 		pr_debug("%s: cmd cfg pcm was block failed", __func__);
 
 	prtd->enabled = RUNNING;
-done:
+
 	return ret;
 }
 
@@ -751,13 +730,7 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 		if (!ret)
 			pr_err("%s: CMD_EOS failed, cmd_pending 0x%lx\n",
 			       __func__, prtd->cmd_pending);
-		if (prtd->session_id) {
-			ret = q6asm_cmd(prtd->audio_client, CMD_CLOSE);
-			if (ret < 0)
-				pr_err("%s: error: ASM close failed returned %d\n",
-					__func__, ret);
-			ret = 0;
-		}
+		q6asm_cmd(prtd->audio_client, CMD_CLOSE);
 		q6asm_audio_client_buf_free_contiguous(dir,
 					prtd->audio_client);
 		q6asm_audio_client_free(prtd->audio_client);
@@ -765,7 +738,7 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 	msm_pcm_routing_dereg_phy_stream(soc_prtd->dai_link->be_id,
 						SNDRV_PCM_STREAM_PLAYBACK);
 	kfree(prtd);
-	return ret;
+	return 0;
 }
 
 static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
@@ -856,17 +829,10 @@ static int msm_pcm_capture_close(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct msm_audio *prtd = runtime->private_data;
 	int dir = OUT;
-	int rc = 0;
 
 	pr_debug("%s\n", __func__);
 	if (prtd->audio_client) {
-		if (prtd->session_id) {
-			rc = q6asm_cmd(prtd->audio_client, CMD_CLOSE);
-			if (rc < 0)
-				pr_err("%s: error: ASM close failed returned %d\n",
-					__func__, rc);
-			rc = 0;
-		}
+		q6asm_cmd(prtd->audio_client, CMD_CLOSE);
 		q6asm_audio_client_buf_free_contiguous(dir,
 				prtd->audio_client);
 		q6asm_audio_client_free(prtd->audio_client);
@@ -875,7 +841,8 @@ static int msm_pcm_capture_close(struct snd_pcm_substream *substream)
 	msm_pcm_routing_dereg_phy_stream(soc_prtd->dai_link->be_id,
 		SNDRV_PCM_STREAM_CAPTURE);
 	kfree(prtd);
-	return rc;
+
+	return 0;
 }
 
 static int msm_pcm_copy(struct snd_pcm_substream *substream, int a,
@@ -967,7 +934,7 @@ static int msm_pcm_hw_params(struct snd_pcm_substream *substream,
 		pr_err("Audio Start: Buffer Allocation failed rc = %d\n",
 							ret);
 //HTC_AUD_START
-#ifdef CONFIG_HTC_AUDIO_DEBUG
+#ifdef CONFIG_HTC_DEBUG_DSP
 		BUG();
 #endif
 //HTC_AUD_END

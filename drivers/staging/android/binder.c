@@ -357,7 +357,7 @@ struct binder_transaction {
 	struct binder_thread *to_thread;
 	struct binder_transaction *to_parent;
 	unsigned need_reply:1;
-		
+	/* unsigned is_dead:1; */	/* not used at the moment */
 
 	struct binder_buffer *buffer;
 	unsigned int	code;
@@ -1506,7 +1506,7 @@ static void binder_transaction(struct binder_proc *proc,
 	}
 	e->to_proc = target_proc->pid;
 
-	
+	/* TODO: reuse incoming transaction for reply */
 	t = kzalloc_preempt_disabled(sizeof(*t));
 	if (t == NULL) {
 		return_error = BR_FAILED_REPLY;
@@ -2991,7 +2991,7 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_ops = &binder_vm_ops;
 	vma->vm_private_data = proc;
 
-	
+	/* binder_update_page_range assumes preemption is disabled */
 	preempt_disable();
 	ret = binder_update_page_range(proc, 1, proc->buffer, proc->buffer + PAGE_SIZE, vma);
 	preempt_enable_no_resched();

@@ -52,6 +52,7 @@
 #include <asm/irq_regs.h>
 
 atomic_t em_remount = ATOMIC_INIT(0);
+/* Whether we react on sysrq keys or just ignore them */
 static int __read_mostly sysrq_enabled = CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE;
 static bool __read_mostly sysrq_always_enabled;
 

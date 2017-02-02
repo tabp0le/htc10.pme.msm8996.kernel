@@ -195,6 +195,7 @@ static int msm_dai_slim_ch_ctl(struct msm_slim_dma_data *dma_data,
 		break;
 
 	case MSM_DAI_SLIM_DISABLE:
+
 		rc = slim_dealloc_mgrports(sdev,
 					   &dma_data->ph, 1);
 		if (IS_ERR_VALUE(rc)) {
@@ -481,7 +482,9 @@ static void msm_dai_slim_remove_dai_data(
 		dai_data_t = &drv_data->slim_dai_data[i];
 
 		kfree(dai_data_t->chan_h);
+		dai_data_t->chan_h = NULL;
 		kfree(dai_data_t->sh_ch);
+		dai_data_t->sh_ch = NULL;
 	}
 }
 

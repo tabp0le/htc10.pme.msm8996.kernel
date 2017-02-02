@@ -3600,6 +3600,7 @@ static struct clk_lookup msm_clocks_gcc_8996_v2[] = {
 	CLK_LIST(gpll0_out_msscc),
 };
 
+/* Added for clock debugging */
 void clk_gcc_ignore_list_add(const char *clock_name)
 {
 	struct clk_lookup *p, *cl = NULL;
@@ -3615,6 +3616,7 @@ void clk_gcc_ignore_list_add(const char *clock_name)
 	cl->clk->flags |= CLKFLAG_IGNORE;
 }
 
+/* Added for clock debugging */
 int __init clk_gcc_ignore_list_init(void)
 {
 	clk_gcc_ignore_list_add("gcc_blsp2_uart2_apps_clk");
