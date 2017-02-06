@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #define CONFIG_HTC_BATT_PCN0001 //Remap
 #define CONFIG_HTC_BATT_PCN0002 //Level consistent
 #define CONFIG_HTC_BATT_PCN0003 //Battery ID judgement
