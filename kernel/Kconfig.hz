@@ -23,6 +23,13 @@ choice
 	  with lots of processors that may show reduced performance if
 	  too many timer interrupts are occurring.
 
+	config HZ_216
+		bool "216 HZ"
+	help
+	  864 HZ is the best value for desktop systems. Most responsive
+	  out of all the options. This is for Quad-core/Processor systems only
+	  as timer frequencies * number of processors = actual frequency.
+	  Try this if you have a quad-core/dual processor system and a desktop environment.
 	config HZ_250
 		bool "250 HZ"
 	help
@@ -50,6 +57,7 @@ endchoice
 config HZ
 	int
 	default 100 if HZ_100
+	default 216 if HZ_216
 	default 250 if HZ_250
 	default 300 if HZ_300
 	default 1000 if HZ_1000
