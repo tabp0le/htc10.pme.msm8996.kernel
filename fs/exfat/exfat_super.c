@@ -2111,7 +2111,11 @@ static int exfat_statfs(struct dentry *dentry, struct kstatfs *buf)
 		info.FreeClusters = info.NumClusters - info.UsedClusters;
 
 		if (p_fs->dev_ejected)
+#ifdef CONFIG_EXFAT_COMPAT_TUXERA
+			printk("[TEXFAT] statfs on device is ejected\n");
+#else
 			printk("[EXFAT] statfs on device is ejected\n");
+#endif
 	}
 
 	buf->f_type = sb->s_magic;
@@ -2383,7 +2387,11 @@ static int parse_options(char *options, int silent, int *debug,
 			break;
 		default:
 			if (!silent)
+#ifdef CONFIG_EXFAT_COMPAT_TUXERA			
+				printk(KERN_ERR "[TEXFAT] Unrecognized mount option %s or missing value\n", p);
+#else
 				printk(KERN_ERR "[EXFAT] Unrecognized mount option %s or missing value\n", p);
+#endif
 			return -EINVAL;
 		}
 	}
@@ -2504,7 +2512,11 @@ static int exfat_fill_super(struct super_block *sb, void *data, int silent)
 	ret = FsMountVol(sb);
 	if (ret) {
 		if (!silent)
-			printk(KERN_ERR "[EXFAT] FsMountVol failed\n");
+#ifdef CONFIG_EXFAT_COMPAT_TUXERA		
+			printk(KERN_ERR "[TEXFAT] FsMountVol failed\n");
+#else
+ 			printk(KERN_ERR "[EXFAT] FsMountVol failed\n");
+#endif
 
 		goto out_fail;
 	}
@@ -2526,7 +2538,11 @@ static int exfat_fill_super(struct super_block *sb, void *data, int silent)
 		sprintf(buf, "cp%d", sbi->options.codepage);
 		sbi->nls_disk = load_nls(buf);
 		if (!sbi->nls_disk) {
+#ifdef CONFIG_EXFAT_COMPAT_TUXERA
+			printk(KERN_ERR "[TEXFAT] Codepage %s not found\n", buf);
+#else
 			printk(KERN_ERR "[EXFAT] Codepage %s not found\n", buf);
+#endif
 			goto out_fail2;
 		}
 	}
@@ -2551,7 +2567,11 @@ static int exfat_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_root = d_alloc_root(root_inode);
 #endif
 	if (!sb->s_root) {
+#ifdef CONFIG_EXFAT_COMPAT_TUXERA
+		printk(KERN_ERR "[TEXFAT] Getting the root inode failed\n");
+#else
 		printk(KERN_ERR "[EXFAT] Getting the root inode failed\n");
+#endif
 		goto out_fail2;
 	}
 
@@ -2636,11 +2656,13 @@ static void exfat_debug_kill_sb(struct super_block *sb)
 }
 #endif /* CONFIG_EXFAT_KERNEL_DEBUG */
 
-static struct file_system_type exfat_fs_type = {
+#ifdef CONFIG_EXFAT_COMPAT_TUXERA
+static struct file_system_type texfat_fs_type = {
 	.owner       = THIS_MODULE,
-#if defined(CONFIG_MACH_LGE) || defined(CONFIG_HTC_BATT_CORE)
 	.name        = "texfat",
 #else
+static struct file_system_type exfat_fs_type = {
+	.owner       = THIS_MODULE,
 	.name        = "exfat",
 #endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
@@ -2673,9 +2695,17 @@ static int __init init_exfat(void)
 	err = exfat_init_inodecache();
 	if (err)
 		goto out;
-
+#ifdef CONFIG_EXFAT_COMPAT_TUXERA
+	err = register_filesystem(&texfat_fs_type);
+	if (err)
+		printk("Unable to register as %s (%d)\n",
+			texfat_fs_type.name, err);
+#else
 	err = register_filesystem(&exfat_fs_type);
 	if (err)
+		printk("Unable to register as %s (%d)\n",
+			ufsd_fs_type.name, err);
+#endif
 		goto out;
 
 	return 0;
@@ -2686,18 +2716,25 @@ out:
 
 static void __exit exit_exfat(void)
 {
+#ifdef CONFIG_EXFAT_COMPAT_TUXERA
 	exfat_destroy_inodecache();
-	unregister_filesystem(&exfat_fs_type);
 	FsShutdown();
+	unregister_filesystem(&texfat_fs_type);
+#else
+	exfat_destroy_inodecache();
+	FsShutdown();
+	unregister_filesystem(&exfat_fs_type);
+#endif
 }
 
 module_init(init_exfat);
 module_exit(exit_exfat);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("exFAT Filesystem Driver");
+MODULE_DESCRIPTION("exFAT & texFAT Filesystem Driver");
+MODULE_AUTHOR("@Dorimanx, Mods By @Eliminater74");
 #ifdef MODULE_ALIAS_FS
-#if defined(CONFIG_MACH_LGE) || defined(CONFIG_HTC_BATT_CORE)
+#ifdef CONFIG_EXFAT_COMPAT_TUXERA
 MODULE_ALIAS_FS("texfat");
 #else
 MODULE_ALIAS_FS("exfat");
