@@ -5,9 +5,15 @@
 ifneq ($(KERNELRELEASE),)
 # call from kernel build system
 
-obj-$(CONFIG_EXFAT_FS) += exfat.o
+exfat := exfat
 
-exfat-objs := exfat_core.o exfat_super.o exfat_api.o exfat_blkdev.o exfat_cache.o \
+ifeq ($(CONFIG_EXFAT_COMPAT_TUXERA),y)
+exfat := texfat
+endif
+
+obj-$(CONFIG_EXFAT_FS) += $(exfat).o
+
+$(exfat)-objs := exfat_core.o exfat_super.o exfat_api.o exfat_blkdev.o exfat_cache.o \
 			   exfat_data.o exfat_bitmap.o exfat_nls.o exfat_oal.o exfat_upcase.o
 
 else
@@ -41,9 +47,9 @@ clean:
 help:
 	$(MAKE) -C $(KDIR) M=$(PWD) help
 
-install: exfat.ko
-	rm -f ${MDIR}/kernel/fs/exfat/exfat.ko
-	install -m644 -b -D exfat.ko ${MDIR}/kernel/fs/exfat/exfat.ko
+install: $(exfat).ko
+	rm -f ${MDIR}/kernel/fs/exfat/$(exfat).ko
+	install -m644 -b -D $(exfat).ko ${MDIR}/kernel/fs/exfat/$(exfat).ko
 	depmod -aq
 
 uninstall:

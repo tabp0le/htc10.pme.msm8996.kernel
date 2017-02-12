@@ -37,3 +37,14 @@ config EXFAT_DEFAULT_IOCHARSET
 	depends on EXFAT_FS
 	help
 	  Set this to the default input/output character set you'd like exFAT to use.
+	  
+config EXFAT_COMPAT_TUXERA
+	bool "Tuxera compatibility for exFAT"
+	depends on EXFAT_FS
+	help
+	  Say Y here to have the exFAT driver also register as texfat
+	  and support extra mount options for drop-in replacement on
+	  systems previously using Tuxera's commercial exFAT driver.
+
+	  If you are building exFAT as a module, this will change
+	  the module's name to texfat.	  
