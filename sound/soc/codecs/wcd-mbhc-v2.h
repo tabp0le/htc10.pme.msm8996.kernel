@@ -74,6 +74,7 @@ enum wcd_mbhc_plug_type {
 	MBHC_PLUG_TYPE_HEADPHONE,
 	MBHC_PLUG_TYPE_HIGH_HPH,
 	MBHC_PLUG_TYPE_GND_MIC_SWAP,
+	MBHC_PLUG_TYPE_ANC_HEADPHONE,
 };
 
 enum pa_dac_ack_flags {
