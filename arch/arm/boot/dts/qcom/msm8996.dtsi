@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,7 +21,7 @@
 	interrupt-parent = <&intc>;
 
 	chosen {
-		bootargs = "sched_enable_hmp=1 sched_enable_power_aware=1 androidboot.rpmdevice=290000.qcom,rpm-stats-ver";
+		bootargs = "sched_enable_hmp=1 sched_enable_power_aware=1 app_setting.use_32bit_app_setting=1";
 	};
 
 	aliases {
@@ -59,6 +59,7 @@
 			qcom,limits-info = <&mitigation_profile0>;
 			enable-method = "psci";
 			qcom,ea = <&ea0>;
+			sched-energy-costs = <&CPU_COST_0 &CLUSTER_COST_0>;
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
 			      compatible = "arm,arch-cache";
@@ -81,6 +82,7 @@
 			qcom,limits-info = <&mitigation_profile1>;
 			enable-method = "psci";
 			qcom,ea = <&ea1>;
+			sched-energy-costs = <&CPU_COST_0 &CLUSTER_COST_0>;
 			next-level-cache = <&L2_0>;
 			L1_D_1: l1-dcache {
 				compatible = "arm,arch-cache";
@@ -98,6 +100,7 @@
 			qcom,limits-info = <&mitigation_profile2>;
 			enable-method = "psci";
 			qcom,ea = <&ea2>;
+			sched-energy-costs = <&CPU_COST_1 &CLUSTER_COST_1>;
 			next-level-cache = <&L2_1>;
 			L2_1: l2-cache {
 			      compatible = "arm,arch-cache";
@@ -120,6 +123,7 @@
 			enable-method = "psci";
 			qcom,limits-info = <&mitigation_profile3>;
 			qcom,ea = <&ea3>;
+			sched-energy-costs = <&CPU_COST_1 &CLUSTER_COST_1>;
 			next-level-cache = <&L2_1>;
 			L1_D_101: l1-dcache {
 				compatible = "arm,arch-cache";
@@ -151,6 +155,127 @@
 				};
 			};
 		};
+		energy-costs {
+			CPU_COST_0: core-cost0 {
+				busy-cost-data = <
+					149 90
+					188 111
+					225 133
+					257 160
+					281 182
+					315 210
+					368 251
+					406 306
+					428 332
+					469 379
+					502 438
+					538 494
+					581 550
+					611 613
+					648 670
+					684 752
+					729 848
+					763 925
+					941 1661
+				>;
+				idle-cost-data = <
+			  		2 2 0
+				>;
+			};
+			CPU_COST_1: core-cost1 {
+				busy-cost-data = <
+					149 93
+					188 111
+					225 133
+					257 160
+					281 182
+					315 210
+					348 252
+					374 290
+					428 332
+					469 379
+					502 438
+					538 494
+					581 550
+					611 613
+					648 670
+					684 752
+					729 848
+					763 925
+					795 1018
+					832 1073
+					868 1209
+					905 1298
+					952 1428
+					979 1521
+					1024 1715
+				>;
+				idle-cost-data = <
+				      2 2 0
+				>;
+			};
+			CLUSTER_COST_0: cluster-cost0 {
+				busy-cost-data = <
+					149 4
+					188 4
+					225 4
+					257 4
+					281 4
+					315 4
+					368 8
+					406 9
+					428 15
+					469 16
+					502 21
+					538 22
+					581 29
+					611 32
+					648 42
+					684 49
+					729 41
+					763 52
+					941 67
+				>;
+				idle-cost-data = <
+					0
+					0
+				>;
+			};
+			CLUSTER_COST_1: cluster-cost1 {
+				busy-cost-data = <
+					149 4
+					188 4
+					225 4
+					257 4
+					281 4
+					315 4
+					348 7
+					374 10
+					428 15
+					469 16
+					502 21
+					538 22
+					581 29
+					611 32
+					648 42
+					684 49
+					729 41
+					763 52
+					795 62
+					832 69
+					868 75
+					905 81
+					952 90
+					979 93
+					1024 96
+				>;
+				idle-cost-data = <
+					0
+					0
+				>;
+			};
+		};
+
 	};
 
 	soc: soc { };
@@ -1364,7 +1489,7 @@
 		gdsc-vdd-supply = <&gdsc_pcie_0>;
 		vreg-1.8-supply = <&pm8994_l12>;
 		vreg-0.9-supply = <&pm8994_l28>;
-		vreg-cx-supply = <&pm8994_s1_corner_ao>;
+		vreg-cx-supply = <&pm8994_s1_corner>;
 
 		qcom,vreg-0.9-voltage-level = <925000 925000 24000>;
 		qcom,vreg-cx-voltage-level = <7 4 0>;
@@ -2279,7 +2404,8 @@
 
 	qcom,cnss {
 		compatible = "qcom,cnss";
-		wlan-en-gpio = <&pm8994_gpios 8 0>;
+		wlan-bootstrap-gpio = <&tlmm 46 0>;
+		vdd-wlan-en-supply = <&wlan_en_vreg>;
 		vdd-wlan-supply = <&rome_vreg>;
 		vdd-wlan-io-supply = <&pm8994_s4>;
 		vdd-wlan-xtal-supply = <&pm8994_l30>;
@@ -3009,13 +3135,6 @@
 			qcom,dump-node = <&L1_TLB_101>;
 			qcom,dump-id = <0x23>;
 		};
-	};
-	htc_pnpmgr{
-		compatible = "htc,perf_table";
-		htc,cluster-map = <0x0c>, <0x03>;
-		htc,perf_table = <1036800>, <1036800>, <1036800>, <1036800>, <1036800>,
-			<1036800>, <1036800>, <1036800>, <1036800>, <1036800>;
-
 	};
 
 	qcom_tzlog: tz-log@66bf720 {

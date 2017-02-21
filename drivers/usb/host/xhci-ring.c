@@ -289,6 +289,14 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 
 	temp_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
 	xhci->cmd_ring_state = CMD_RING_STATE_ABORTED;
+
+	/*
+	 * Writing the CMD_RING_ABORT bit should cause a cmd completion event,
+	 * however on some host hw the CMD_RING_RUNNING bit is correctly cleared
+	 * but the completion event in never sent. Use the cmd timeout timer to
+	 * handle those cases. Use twice the time to cover the bit polling retry
+	 */
+	mod_timer(&xhci->cmd_timer, jiffies + (2 * XHCI_CMD_DEFAULT_TIMEOUT));
 	xhci_write_64(xhci, temp_64 | CMD_RING_ABORT,
 			&xhci->op_regs->cmd_ring);
 
@@ -304,6 +312,7 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 	if (ret < 0) {
 		xhci_err(xhci, "Stopped the command ring failed, "
 				"maybe the host is dead\n");
+		del_timer(&xhci->cmd_timer);
 		xhci->xhc_state |= XHCI_STATE_DYING;
 		xhci_quiesce(xhci);
 		xhci_halt(xhci);
@@ -507,7 +516,7 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 			"Cycle state = 0x%x", state->new_cycle_state);
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-			"New dequeue segment = %p (virtual)",
+			"New dequeue segment = %pK (virtual)",
 			state->new_deq_seg);
 	addr = xhci_trb_virt_to_dma(state->new_deq_seg, state->new_deq_ptr);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
@@ -542,8 +551,8 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 					"Cancel (unchain) link TRB");
 			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-					"Address = %p (0x%llx dma); "
-					"in seg %p (0x%llx dma)",
+					"Address = %pK (0x%llx dma); "
+					"in seg %pK (0x%llx dma)",
 					cur_trb,
 					(unsigned long long)xhci_trb_virt_to_dma(cur_seg, cur_trb),
 					cur_seg,
@@ -679,7 +688,7 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 			 * short, don't muck with the stream ID after
 			 * submission.
 			 */
-			xhci_warn(xhci, "WARN Cancelled URB %p "
+			xhci_warn(xhci, "WARN Cancelled URB %pK "
 					"has invalid stream ID %u.\n",
 					cur_td->urb,
 					cur_td->urb->stream_id);
@@ -830,6 +839,10 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	ep->stop_cmds_pending--;
+	if (xhci->xhc_state & XHCI_STATE_REMOVING) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return;
+	}
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 				"Stop EP timer ran, but another timer marked "
@@ -883,7 +896,7 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 			"Calling usb_hc_died()");
-	usb_hc_died(xhci_to_hcd(xhci)->primary_hcd);
+	usb_hc_died(xhci_to_hcd(xhci));
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 			"xHCI host controller is dead.");
 }
@@ -1024,7 +1037,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 				ep_ring, ep_index);
 		} else {
 			xhci_warn(xhci, "Mismatch between completed Set TR Deq Ptr command & xHCI internal state.\n");
-			xhci_warn(xhci, "ep deq seg = %p, deq ptr = %p\n",
+			xhci_warn(xhci, "ep deq seg = %pK, deq ptr = %pK\n",
 				  ep->queued_deq_seg, ep->queued_deq_ptr);
 		}
 	}
@@ -1208,7 +1221,7 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 
 		i_cmd->status = COMP_CMD_STOP;
 
-		xhci_dbg(xhci, "Turn aborted command %p to no-op\n",
+		xhci_dbg(xhci, "Turn aborted command %pK to no-op\n",
 			 i_cmd->command_trb);
 		/* get cycle state from the original cmd trb */
 		cycle_state = le32_to_cpu(
@@ -1245,22 +1258,21 @@ void xhci_handle_command_timeout(unsigned long data)
 	int ret;
 	unsigned long flags;
 	u64 hw_ring_state;
-	struct xhci_command *cur_cmd = NULL;
+	bool second_timeout = false;
 	xhci = (struct xhci_hcd *) data;
 
 	/* mark this command to be cancelled */
 	spin_lock_irqsave(&xhci->lock, flags);
 	if (xhci->current_cmd) {
-		cur_cmd = xhci->current_cmd;
-		cur_cmd->status = COMP_CMD_ABORT;
+		if (xhci->current_cmd->status == COMP_CMD_ABORT)
+			second_timeout = true;
+		xhci->current_cmd->status = COMP_CMD_ABORT;
 	}
-
 
 	/* Make sure command ring is running before aborting it */
 	hw_ring_state = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
 	if ((xhci->cmd_ring_state & CMD_RING_STATE_RUNNING) &&
 	    (hw_ring_state & CMD_RING_RUNNING))  {
-
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg(xhci, "Command timeout\n");
 		ret = xhci_abort_cmd_ring(xhci);
@@ -1272,6 +1284,15 @@ void xhci_handle_command_timeout(unsigned long data)
 		}
 		return;
 	}
+
+	/* command ring failed to restart, or host removed. Bail out */
+	if (second_timeout || xhci->xhc_state & XHCI_STATE_REMOVING) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_dbg(xhci, "command timed out twice, ring start fail?\n");
+		xhci_cleanup_command_queue(xhci);
+		return;
+	}
+
 	/* command timeout on stopped ring, ring can't be aborted */
 	xhci_dbg(xhci, "Command timeout on stopped ring\n");
 	xhci_handle_stopped_cmd_ring(xhci, xhci->current_cmd);
@@ -1307,12 +1328,6 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 
 	cmd = list_entry(xhci->cmd_list.next, struct xhci_command, cmd_list);
 
-	if (cmd->command_trb != xhci->cmd_ring->dequeue) {
-		xhci_err(xhci,
-			 "Command completion event does not match command\n");
-		return;
-	}
-
 	del_timer(&xhci->cmd_timer);
 
 	trace_xhci_cmd_completion(cmd_trb, (struct xhci_generic_trb *) event);
@@ -1324,6 +1339,13 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		xhci_handle_stopped_cmd_ring(xhci, cmd);
 		return;
 	}
+
+	if (cmd->command_trb != xhci->cmd_ring->dequeue) {
+		xhci_err(xhci,
+			 "Command completion event does not match command\n");
+		return;
+	}
+
 	/*
 	 * Host aborted the command ring, check if the current command was
 	 * supposed to be aborted, otherwise continue normally.
@@ -1573,7 +1595,8 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			 */
 			bogus_port_status = true;
 			goto cleanup;
-		} else {
+		} else if (!test_bit(faked_port_index,
+				     &bus_state->resuming_ports)) {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
 			bus_state->resume_done[faked_port_index] = jiffies +
 				msecs_to_jiffies(USB_RESUME_TIMEOUT);
@@ -2527,7 +2550,7 @@ cleanup:
 						 URB_SHORT_NOT_OK)) ||
 					(status != 0 &&
 					 !usb_endpoint_xfer_isoc(&urb->ep->desc)))
-				xhci_dbg(xhci, "Giveback URB %p, len = %d, "
+				xhci_dbg(xhci, "Giveback URB %pK, len = %d, "
 						"expected = %d, status = %d\n",
 						urb, urb->actual_length,
 						urb->transfer_buffer_length,
@@ -4062,7 +4085,7 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 	int ret;
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-		"Set TR Deq Ptr cmd, new deq seg = %p (0x%llx dma), new deq ptr = %p (0x%llx dma), new cycle = %u",
+		"Set TR Deq Ptr cmd, new deq seg = %pK (0x%llx dma), new deq ptr = %pK (0x%llx dma), new cycle = %u",
 		deq_state->new_deq_seg,
 		(unsigned long long)deq_state->new_deq_seg->dma,
 		deq_state->new_deq_ptr,
@@ -4074,7 +4097,7 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 				    deq_state->new_deq_ptr);
 	if (addr == 0) {
 		xhci_warn(xhci, "WARN Cannot submit Set TR Deq Ptr\n");
-		xhci_warn(xhci, "WARN deq seg = %p, deq pt = %p\n",
+		xhci_warn(xhci, "WARN deq seg = %pK, deq pt = %pK\n",
 			  deq_state->new_deq_seg, deq_state->new_deq_ptr);
 		return;
 	}

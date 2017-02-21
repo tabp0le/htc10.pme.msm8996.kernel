@@ -247,9 +247,9 @@ static void __init setup_processor(void)
 	if (!cwg)
 		pr_warn("No Cache Writeback Granule information, assuming cache line size %d\n",
 			cls);
-	if (L1_CACHE_BYTES < cls)
-		pr_warn("L1_CACHE_BYTES smaller than the Cache Writeback Granule (%d < %d)\n",
-			L1_CACHE_BYTES, cls);
+	if (ARCH_DMA_MINALIGN < cls)
+		pr_warn("ARCH_DMA_MINALIGN smaller than the Cache Writeback Granule (%d < %d)\n",
+			ARCH_DMA_MINALIGN, cls);
 
 	/*
 	 * ID_AA64ISAR0_EL1 contains 4-bit wide signed feature blocks.
@@ -334,25 +334,6 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 		pr_info("Machine: %s\n", machine_name);
 	}
 }
-
-/*
- * Limit the memory size that was specified via FDT.
- */
-static int __init early_mem(char *p)
-{
-	phys_addr_t limit;
-
-	if (!p)
-		return 1;
-
-	limit = memparse(p, &p) & PAGE_MASK;
-	pr_notice("Memory limited to %lldMB\n", limit >> 20);
-
-	memblock_enforce_memory_limit(limit);
-
-	return 0;
-}
-early_param("mem", early_mem);
 
 static void __init request_standard_resources(void)
 {
@@ -575,38 +556,38 @@ static const char *compat_hwcap2_str[] = {
 	"crc32",
 	NULL
 };
-#endif 
+#endif /* CONFIG_COMPAT */
 
 static u32 cx_fuse_data = 0x0;
 static u32 mx_fuse_data = 0x0;
 
 static const u32 vddcx_pvs_retention_data[8] =
 {
-   600000,
-   550000,
-   500000,
-   450000,
-   400000,
-   400000, 
-   400000, 
-   600000
+  /* 000 */ 600000,
+  /* 001 */ 550000,
+  /* 010 */ 500000,
+  /* 011 */ 450000,
+  /* 100 */ 400000,
+  /* 101 */ 400000, //limiting based on CR812560
+  /* 110 */ 400000, //limiting based on CR812560
+  /* 111 */ 600000
 };
 
 static const u32 vddmx_pvs_retention_data[8] =
 {
-   700000,
-   650000,
-   580000,
-   550000,
-   490000,
-   490000,
-   490000,
-   490000
+  /* 000 */ 700000,
+  /* 001 */ 650000,
+  /* 010 */ 580000,
+  /* 011 */ 550000,
+  /* 100 */ 490000,
+  /* 101 */ 490000,
+  /* 110 */ 490000,
+  /* 111 */ 490000
 };
 
 static int read_cx_fuse_setting(void){
 	if(cx_fuse_data != 0x0)
-		
+		/* 0x00070134[31:29] */
 		return ((cx_fuse_data & (0x7 << 29)) >> 29);
 	else
 		return -ENOMEM;
@@ -614,7 +595,7 @@ static int read_cx_fuse_setting(void){
 
 static int read_mx_fuse_setting(void){
 	if(mx_fuse_data != 0x0)
-		
+		/* 0x00070148[4:2] */
 		return ((mx_fuse_data & (0x7 << 2)) >> 2);
 	else
 		return -ENOMEM;

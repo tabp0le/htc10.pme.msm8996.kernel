@@ -74,6 +74,7 @@ enum wcd_mbhc_plug_type {
 	MBHC_PLUG_TYPE_HEADPHONE,
 	MBHC_PLUG_TYPE_HIGH_HPH,
 	MBHC_PLUG_TYPE_GND_MIC_SWAP,
+	MBHC_PLUG_TYPE_ANC_HEADPHONE,
 };
 
 enum pa_dac_ack_flags {
@@ -350,7 +351,7 @@ struct wcd_mbhc_cb {
 			    int num_btn, bool);
 	void (*hph_pull_up_control)(struct snd_soc_codec *,
 				    enum mbhc_hs_pullup_iref);
-	int (*mbhc_micbias_control)(struct snd_soc_codec *, int req);
+	int (*mbhc_micbias_control)(struct snd_soc_codec *, int, int req);
 	void (*mbhc_micb_ramp_control)(struct snd_soc_codec *, bool);
 	void (*skip_imped_detect)(struct snd_soc_codec *);
 	bool (*extn_use_mb)(struct snd_soc_codec *);
@@ -385,7 +386,7 @@ struct wcd_mbhc {
 	bool is_extn_cable;
 	bool skip_imped_detection;
 	bool is_btn_already_regd;
-	bool swap_detect; 
+	bool swap_detect; //HTC_AUD - disable cross conection
 
 	struct snd_soc_codec *codec;
 	/* Work to perform MBHC Firmware Read */
@@ -423,14 +424,16 @@ struct wcd_mbhc {
 	struct mutex hphr_pa_lock;
 
 	unsigned long intr_status;
-	
+//HTC_AUD_START
+	/* Add attribute on sysfs for debugging */
 	struct class *htc_accessory_class;
 	struct device *headset_dev;
 	struct device *debug_dev;
 	u16 debug_reg[50];
 	int debug_reg_count;
-	int pcb_id; 
-	int bom_id; 
+	int pcb_id; //WA for semi device due to mbhc is not ready
+	int bom_id; //WA for semi device due to mbhc is not ready
+//HTC_AUD_END
 };
 #define WCD_MBHC_CAL_SIZE(buttons, rload) ( \
 	sizeof(struct wcd_mbhc_general_cfg) + \
@@ -484,6 +487,7 @@ struct wcd_mbhc {
 	(cfg_ptr->_n_rload * \
 	(sizeof(cfg_ptr->_rload[0]) + sizeof(cfg_ptr->_alpha[0]))))
 
+//HTC_AUD_START
 #define DEVICE_HEADSET_ATTR(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_headset_##_name = \
 	__ATTR(_name, _mode, _show, _store)
@@ -491,6 +495,7 @@ struct wcd_mbhc {
 #define DEVICE_ACCESSORY_ATTR(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name = \
 	__ATTR(flag, _mode, _show, _store)
+//HTC_AUD_END
 
 #ifdef CONFIG_SND_SOC_WCD_MBHC
 int wcd_mbhc_set_keycode(struct wcd_mbhc *mbhc);

@@ -815,7 +815,11 @@ advance:
 
 	iface_no = ctx->data->cur_altsetting->desc.bInterfaceNumber;
 
-	/* reset data interface */
+	/* Reset data interface. Some devices will not reset properly
+	 * unless they are configured first.  Toggle the altsetting to
+	 * force a reset
+	 */
+	usb_set_interface(dev->udev, iface_no, data_altsetting);
 	temp = usb_set_interface(dev->udev, iface_no, 0);
 	if (temp) {
 		dev_dbg(&intf->dev, "set interface failed\n");
@@ -849,7 +853,7 @@ advance:
 			dev_dbg(&intf->dev, "failed to get mac address\n");
 			goto error2;
 		}
-		dev_info(&intf->dev, "MAC-Address: %pM\n", dev->net->dev_addr);
+		dev_info(&intf->dev, "MAC-Address: %pKM\n", dev->net->dev_addr);
 	}
 
 	/* finish setting up the device specific data */
@@ -948,10 +952,14 @@ EXPORT_SYMBOL_GPL(cdc_ncm_select_altsetting);
 
 static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	
+	/* MBIM backwards compatible function? */
 	if (cdc_ncm_select_altsetting(intf) != CDC_NCM_COMM_ALTSETTING_NCM)
 		return -ENODEV;
 
+	/* The NCM data altsetting is fixed, so we hard-coded it.
+	 * Additionally, generic NCM devices are assumed to accept arbitrarily
+	 * placed NDP.
+	 */
 	return cdc_ncm_bind_common(dev, intf, CDC_NCM_DATA_ALTSETTING_NCM);
 }
 
@@ -1387,7 +1395,7 @@ next_ndp:
 		if (((offset + len) > skb_in->len) ||
 				(len > ctx->rx_max) || (len < ETH_HLEN)) {
 			netif_dbg(dev, rx_err, dev->net,
-				  "invalid frame detected (ignored) offset[%u]=%u, length=%u, skb=%p\n",
+				  "invalid frame detected (ignored) offset[%u]=%u, length=%u, skb=%pK\n",
 				  x, offset, len, skb_in);
 			if (!x)
 				goto err_ndp;

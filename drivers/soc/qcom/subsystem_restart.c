@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -97,6 +97,9 @@ static const char * const restart_levels[] = {
 };
 
 #if defined(CONFIG_HTC_DEBUG_SSR)
+/**
+ * MSS restart reason feature (Non-block)
+ */
 
 #define SUBSYS_NAME_MAX_LENGTH 40
 #define RD_BUF_SIZE			  256
@@ -119,7 +122,7 @@ static ssize_t subsystem_restart_reason_nonblock_show(struct kobject *kobj,
 
 	for( i=0; i<MODEM_ERRMSG_LIST_LEN; i++ ) {
 		if( msr_info_list[i].valid != 0 ) {
-			
+			//Copy errmsg to buf
 			snprintf(tmp, RD_BUF_SIZE+30, "%ld-%s|\n\r", msr_info_list[i].msr_time.tv_sec, msr_info_list[i].modem_errmsg);
 			strcat(buf, tmp);
 			memset(tmp, 0, RD_BUF_SIZE+30);
@@ -167,6 +170,17 @@ static struct attribute_group attr_group = {
 
 #endif
 
+/**
+ * struct subsys_tracking - track state of a subsystem or restart order
+ * @p_state: private state of subsystem/order
+ * @state: public state of subsystem/order
+ * @s_lock: protects p_state
+ * @lock: protects subsystem/order callbacks and state
+ *
+ * Tracks the state of a subsystem or a set of subsystems (restart order).
+ * Doing this avoids the need to grab each subsystem's lock and update
+ * each subsystems state when restarting an order.
+ */
 struct subsys_tracking {
 	enum p_subsys_state p_state;
 	spinlock_t s_lock;
@@ -352,7 +366,7 @@ void subsys_set_restart_reason(struct subsys_device *dev, const char* reason)
 	snprintf(dev->restart_reason, sizeof(dev->restart_reason) - 1, "%s", reason);
 }
 EXPORT_SYMBOL(subsys_set_restart_reason);
-#endif 
+#endif /* CONFIG_HTC_DEBUG_SSR */
 
 static ssize_t system_debug_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -820,10 +834,10 @@ static void enable_all_irqs(struct subsys_device *dev)
 		irq_set_irq_wake(dev->desc->generic_irq, 1);
 	}
 
-#if 1 
+#if 1 //Modem_BSP++
         if (dev->desc->reboot_req_irq)
                 enable_irq(dev->desc->reboot_req_irq);
-#endif 
+#endif //Modem_BSP--
 }
 
 static void disable_all_irqs(struct subsys_device *dev)
@@ -844,10 +858,10 @@ static void disable_all_irqs(struct subsys_device *dev)
 		irq_set_irq_wake(dev->desc->generic_irq, 0);
 	}
 
-#if 1 
+#if 1 //Modem_BSP++
         if (dev->desc->reboot_req_irq)
                 disable_irq(dev->desc->reboot_req_irq);
-#endif 
+#endif //Modem_BSP--
 }
 
 static int wait_for_err_ready(struct subsys_device *subsys)
@@ -876,10 +890,11 @@ static void subsystem_shutdown(struct subsys_device *dev, void *data)
 {
 	const char *name = dev->desc->name;
 
-	pr_info("[%p]: Shutting down %s\n", current, name);
+	pr_info("[%s:%d]: Shutting down %s\n",
+			current->comm, current->pid, name);
 	if (dev->desc->shutdown(dev->desc, true) < 0)
-		panic("subsys-restart: [%p]: Failed to shutdown %s!",
-			current, name);
+		panic("subsys-restart: [%s:%d]: Failed to shutdown %s!",
+			current->comm, current->pid, name);
 	dev->crash_count++;
 	subsys_set_state(dev, SUBSYS_OFFLINE);
 	disable_all_irqs(dev);
@@ -891,7 +906,8 @@ static void subsystem_ramdump(struct subsys_device *dev, void *data)
 
 	if (dev->desc->ramdump)
 		if (dev->desc->ramdump(is_ramdump_enabled(dev), dev->desc) < 0)
-			pr_warn("%s[%p]: Ramdump failed.\n", name, current);
+			pr_warn("%s[%s:%d]: Ramdump failed.\n",
+				name, current->comm, current->pid);
 	dev->do_ramdump_on_put = false;
 }
 
@@ -906,13 +922,14 @@ static void subsystem_powerup(struct subsys_device *dev, void *data)
 	const char *name = dev->desc->name;
 	int ret;
 
-	pr_info("[%p]: Powering up %s\n", current, name);
+	pr_info("[%s:%d]: Powering up %s\n", current->comm, current->pid, name);
 	init_completion(&dev->err_ready);
 
 	if (dev->desc->powerup(dev->desc) < 0) {
 		notify_each_subsys_device(&dev, 1, SUBSYS_POWERUP_FAILURE,
 								NULL);
-		panic("[%p]: Powerup error: %s!", current, name);
+		panic("[%s:%d]: Powerup error: %s!",
+			current->comm, current->pid, name);
 	}
 	enable_all_irqs(dev);
 
@@ -920,8 +937,8 @@ static void subsystem_powerup(struct subsys_device *dev, void *data)
 	if (ret) {
 		notify_each_subsys_device(&dev, 1, SUBSYS_POWERUP_FAILURE,
 								NULL);
-		panic("[%p]: Timed out waiting for error ready: %s!",
-			current, name);
+		panic("[%s:%d]: Timed out waiting for error ready: %s!",
+			current->comm, current->pid, name);
 	}
 	subsys_set_state(dev, SUBSYS_ONLINE);
 	subsys_set_crash_status(dev, false);
@@ -1208,8 +1225,8 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 	 */
 	mutex_lock(&soc_order_reg_lock);
 
-	pr_debug("[%p]: Starting restart sequence for %s\n", current,
-			desc->name);
+	pr_debug("[%s:%d]: Starting restart sequence for %s\n",
+			current->comm, current->pid, desc->name);
 	notify_each_subsys_device(list, count, SUBSYS_BEFORE_SHUTDOWN, NULL);
 	for_each_subsys_device(list, count, NULL, subsystem_shutdown);
 	notify_each_subsys_device(list, count, SUBSYS_AFTER_SHUTDOWN, NULL);
@@ -1230,8 +1247,8 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 	for_each_subsys_device(list, count, NULL, subsystem_powerup);
 	notify_each_subsys_device(list, count, SUBSYS_AFTER_POWERUP, NULL);
 
-	pr_info("[%p]: Restart sequence for %s completed.\n",
-			current, desc->name);
+	pr_info("[%s:%d]: Restart sequence for %s completed.\n",
+			current->comm, current->pid, desc->name);
 
 	mutex_unlock(&soc_order_reg_lock);
 	mutex_unlock(&track->lock);
@@ -1250,7 +1267,7 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
 	unsigned long flags;
 
 #if defined(CONFIG_HTC_DEBUG_SSR)
-		
+		/*+SSD-RIL for nonblock restart reason	*/
 		if (!strncmp(name, "modem",
 					SUBSYS_NAME_MAX_LENGTH)) {
 		  msr_info_list[msm_msr_index].valid = 1;
@@ -1260,7 +1277,7 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
 		  if(++msm_msr_index >= MODEM_ERRMSG_LIST_LEN)
 		    msm_msr_index = 0;
 		}
-	   
+	   /*-SSD-RIL for nonblock restart reason	*/
 #endif
 
 	pr_info("Restarting %s [level=%s]!\n", desc->name,
@@ -1336,8 +1353,9 @@ int subsystem_restart_dev(struct subsys_device *dev)
 	pr_info("Restart sequence requested for %s, restart_level = %s.\n",
 		name, restart_levels[dev->restart_level]);
 
-	if (WARN(disable_restart_work == DISABLE_SSR,
-		"subsys-restart: Ignoring restart request for %s.\n", name)) {
+	if (disable_restart_work == DISABLE_SSR) {
+		pr_warn("subsys-restart: Ignoring restart request for %s.\n",
+									name);
 		return 0;
 	}
 
@@ -1797,12 +1815,12 @@ static int subsys_parse_devicetree(struct subsys_desc *desc)
 	if (ret && ret != -ENOENT)
 		return ret;
 
-#if 1 
+#if 1 //Modem_BSP++
 	ret = __get_irq(desc, "qcom,gpio-reboot-req", &desc->reboot_req_irq,
 							NULL);
 	if (ret && ret != -ENOENT)
 		return ret;
-#endif 
+#endif //Modem_BSP--
 
 	ret = __get_gpio(desc, "qcom,gpio-force-stop", &desc->force_stop_gpio);
 	if (ret && ret != -ENOENT)
@@ -1860,7 +1878,7 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 		disable_irq(desc->err_fatal_irq);
 	}
 
-#if 1 
+#if 1 //Modem_BSP++
 	if (desc->reboot_req_irq) {
 		ret = devm_request_irq(desc->dev, desc->reboot_req_irq,
 				desc->reboot_req_handler,
@@ -1872,7 +1890,7 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 		}
 		disable_irq(desc->reboot_req_irq);
 	}
-#endif 
+#endif //Modem_BSP--
 
 	if (desc->stop_ack_irq && desc->stop_ack_handler) {
 		ret = devm_request_irq(desc->dev, desc->stop_ack_irq,
@@ -1935,10 +1953,10 @@ static void subsys_free_irqs(struct subsys_device *subsys)
 	if (desc->err_fatal_irq && desc->err_fatal_handler)
 		devm_free_irq(desc->dev, desc->err_fatal_irq, desc);
 
-#if 1 
+#if 1 //Modem_BSP++
 	if (desc->reboot_req_irq)
 		devm_free_irq(desc->dev, desc->reboot_req_irq, desc);
-#endif 
+#endif //Modem_BSP--
 	
 	if (desc->stop_ack_irq && desc->stop_ack_handler)
 		devm_free_irq(desc->dev, desc->stop_ack_irq, desc);
@@ -2131,7 +2149,7 @@ static int __init subsys_restart_init(void)
 	int ret;
 #if defined(CONFIG_HTC_DEBUG_SSR)
 		struct kobject *properties_kobj;
-		
+		/*+SSD-RIL for nonblock restart reason	*/
 		subsystem_restart_reason_nonblock_init();
 		properties_kobj = kobject_create_and_add("subsystem_restart_properties", NULL);
 		if (properties_kobj) {
@@ -2141,7 +2159,7 @@ static int __init subsys_restart_init(void)
 				return ret;
 			}
 		}
-		
+		/*-SSD-RIL for nonblock restart reason	*/
 #endif
 	ssr_wq = alloc_workqueue("ssr_wq", WQ_CPU_INTENSIVE, 0);
 	BUG_ON(!ssr_wq);

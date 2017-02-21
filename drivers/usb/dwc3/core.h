@@ -975,6 +975,7 @@ struct dwc3 {
 	int			irq;
 	struct tasklet_struct	bh;
 	unsigned long		irq_cnt;
+	unsigned long		ep_cmd_timeout_cnt;
 	unsigned                bh_completion_time[MAX_INTR_STATS];
 	unsigned                bh_handled_evt_cnt[MAX_INTR_STATS];
 	unsigned                bh_dbg_index;
@@ -985,14 +986,14 @@ struct dwc3 {
 	unsigned                irq_dbg_index;
 
 	wait_queue_head_t	wait_linkstate;
-	
+	/*++ 2015/10/13, USB Team, PCN00022 ++*/
 	bool usb_disable;
 	struct work_struct disable_work;
 	void	(*notify_usb_disabled)(void);
-	
-	
+	/*-- 2015/10/13, USB Team, PCN00022 --*/
+	/*++ 2015/12/22, USB Team, PCN00050 ++*/
 	int		max_speed_backup;
-	
+	/*-- 2015/12/22, USB Team, PCN00050 --*/
 	void			*dwc_ipc_log_ctxt;
 };
 

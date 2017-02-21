@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -30,9 +30,9 @@
 #include "diagfwd_socket.h"
 #include "diag_mux.h"
 #include "diag_ipc_logging.h"
-#include <linux/htc_flags.h>
+#include <linux/htc_flags.h>/*++ 2015/10/26, USB Team, PCN00029  ++*/
 
-int diag_initialized;
+int diag_initialized;/*++ 2015/10/23, USB Team, PCN00026 ++*/
 
 struct data_header {
 	uint8_t control_char;
@@ -223,7 +223,7 @@ static void diagfwd_data_read_done(struct diagfwd_info *fwd_info,
 	unsigned char *write_buf = NULL;
 	struct diagfwd_buf_t *temp_buf = NULL;
 #if DIAG_XPST && !defined(CONFIG_DIAGFWD_BRIDGE_CODE)
-	int ret = 0;
+	int ret = 0;/*++ 2015/10/23, USB Team, PCN00026 ++*/
 #endif
 	struct diag_md_session_t *session_info = NULL;
 	uint8_t hdlc_disabled = 0;
@@ -311,21 +311,28 @@ static void diagfwd_data_read_done(struct diagfwd_info *fwd_info,
 			goto end;
 		}
 	}
+/*++ 2015/10/23, USB Team, PCN00026 ++*/
 	if (fwd_info->peripheral == PERIPHERAL_MODEM) {
 		DIAGFWD_7K_RAWDATA(buf, "modem", DIAG_DBG_READ);
 #if DIAG_XPST && !defined(CONFIG_DIAGFWD_BRIDGE_CODE)
 		ret = checkcmd_modem_epst(buf);
 		if (ret) {
 			modem_to_userspace(buf, len, ret, 0);
-			
+			/*++ 2015/10/26, USB Team, PCN00029 ++*/
+			/* The c8 command will send DM agent only, unless
+			 * the modem flag has been set for debug purpose,
+			 * after the flag set, the command will be send
+			 * to PC.
+			 */
 			if (!(get_radio_ex2_flag() & 0x80000000))
 				goto end;
-			
+			/*-- 2015/10/26, USB Team, PCN00029 --*/
 		}
-	
-	
+	//	if (driver->qxdmusb_drop && driver->logging_mode == USB_MODE)
+	//		goto work;
 #endif
 	}
+/*-- 2015/10/23, USB Team, PCN00026 --*/
 
 	if (write_len > 0) {
 		err = diag_mux_write(DIAG_LOCAL_PROC, write_buf, write_len,
@@ -662,13 +669,12 @@ void diagfwd_close_transport(uint8_t transport, uint8_t peripheral)
 		break;
 	default:
 		return;
-
 	}
 
+	mutex_lock(&driver->diagfwd_channel_mutex[peripheral]);
 	fwd_info = &early_init_info[transport][peripheral];
 	if (fwd_info->p_ops && fwd_info->p_ops->close)
 		fwd_info->p_ops->close(fwd_info->ctxt);
-	mutex_lock(&driver->diagfwd_channel_mutex);
 	fwd_info = &early_init_info[transport_open][peripheral];
 	dest_info = &peripheral_info[TYPE_CNTL][peripheral];
 	dest_info->inited = 1;
@@ -687,7 +693,7 @@ void diagfwd_close_transport(uint8_t transport, uint8_t peripheral)
 		diagfwd_late_open(dest_info);
 	diagfwd_cntl_open(dest_info);
 	init_fn(peripheral);
-	mutex_unlock(&driver->diagfwd_channel_mutex);
+	mutex_unlock(&driver->diagfwd_channel_mutex[peripheral]);
 	diagfwd_queue_read(&peripheral_info[TYPE_DATA][peripheral]);
 	diagfwd_queue_read(&peripheral_info[TYPE_CMD][peripheral]);
 }
@@ -842,8 +848,10 @@ int diagfwd_channel_open(struct diagfwd_info *fwd_info)
 			fwd_info->p_ops->open(fwd_info->ctxt);
 	}
 
+/*++ 2015/10/23, USB Team, PCN00026 ++*/
 	if (fwd_info->peripheral == PERIPHERAL_MODEM)
 		diag_initialized = 1;
+/*-- 2015/10/23, USB Team, PCN00026 --*/
 
 	return 0;
 }
@@ -865,8 +873,10 @@ int diagfwd_channel_close(struct diagfwd_info *fwd_info)
 	DIAG_LOG(DIAG_DEBUG_PERIPHERALS, "p: %d t: %d considered closed\n",
 		 fwd_info->peripheral, fwd_info->type);
 
+/*++ 2015/10/23, USB Team, PCN00026 ++*/
 	if (fwd_info->peripheral == PERIPHERAL_MODEM)
 		diag_initialized = 0;
+/*-- 2015/10/23, USB Team, PCN00026 --*/
 	return 0;
 }
 

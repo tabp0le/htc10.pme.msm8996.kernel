@@ -298,6 +298,9 @@ static int sdhci_read_speed_class(struct seq_file *m, void *v)
 		host->card ? host->card->speed_class : -1);
 }
 
+/*
+ * seq_file wrappers for procfile show routines.
+ */
 static int sdhci_proc_speed_class_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, sdhci_read_speed_class, PDE_DATA(file_inode(file)));
@@ -329,11 +332,20 @@ static const struct file_operations sdhci_proc_sd_tray_fops = {
 	.release	= single_release,
 };
 
+/*
+ * sdhci_msm_get_cd - return SD status
+ *
+ * return 0 : ejected
+ * return 1 : inserted
+ * return -38 : ENOSYS, current host doesn`t have detection pin
+ *
+ */
 static int sdhci_msm_get_cd(struct sdhci_host *host)
 {
 	return mmc_gpio_get_cd(host->mmc);
 }
 
+/* MSM platform specific tuning */
 static inline int msm_dll_poll_ck_out_en(struct sdhci_host *host,
 						u8 poll)
 {
@@ -1488,7 +1500,7 @@ static int sdhci_msm_parse_pinctrl_info(struct device *dev,
 		goto out;
 	}
 
-	
+	/* Look-up active_sdr104 pin states from device tree */
 	pctrl_data->pins_active_sdr104 = pinctrl_lookup_state(
 			pctrl_data->pctrl, "active_sdr104");
 	if (IS_ERR(pctrl_data->pins_active_sdr104)) {
@@ -2720,9 +2732,17 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 	if (done)
 		init_completion(&msm_host->pwr_irq_completion);
 	else if (!wait_for_completion_timeout(&msm_host->pwr_irq_completion,
-				msecs_to_jiffies(MSM_PWR_IRQ_TIMEOUT_MS)))
+				msecs_to_jiffies(MSM_PWR_IRQ_TIMEOUT_MS))) {
 		__WARN_printf("%s: request(%d) timed out waiting for pwr_irq\n",
 					mmc_hostname(host->mmc), req_type);
+		MMC_TRACE(host->mmc,
+			"request(%d) timed out waiting for pwr_irq, 0xDC: 0x%08x | 0xE0: 0x%08x | 0xE8: 0x%08x\n",
+			req_type,
+			readl_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS),
+			readl_relaxed(msm_host->core_mem + CORE_PWRCTL_MASK),
+			readl_relaxed(msm_host->core_mem + CORE_PWRCTL_CTL));
+		mmc_stop_tracing(host->mmc);
+		}
 
 	pr_debug("%s: %s: request %d done\n", mmc_hostname(host->mmc),
 			__func__, req_type);
@@ -2844,7 +2864,24 @@ out:
 	return rc;
 }
 
+static void sdhci_msm_disable_controller_clock(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = pltfm_host->priv;
 
+	if (atomic_read(&msm_host->controller_clock)) {
+		if (!IS_ERR(msm_host->clk))
+			clk_disable_unprepare(msm_host->clk);
+		if (!IS_ERR(msm_host->pclk))
+			clk_disable_unprepare(msm_host->pclk);
+		if (!IS_ERR(msm_host->ice_clk))
+			clk_disable_unprepare(msm_host->ice_clk);
+		sdhci_msm_bus_voting(host, 0);
+		atomic_set(&msm_host->controller_clock, 0);
+		pr_debug("%s: %s: disabled controller clock\n",
+			mmc_hostname(host->mmc), __func__);
+	}
+}
 
 static int sdhci_msm_prepare_clocks(struct sdhci_host *host, bool enable)
 {
@@ -3085,6 +3122,9 @@ static void sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 	mb();
 
 	if (sup_clock != msm_host->clk_rate) {
+		/*
+		 * SD SDR104/DDR50 mode need the other driving group.
+		 */
 		if (is_sd_platform(msm_host->pdata) &&
 			(curr_ios.timing == MMC_TIMING_UHS_SDR104 ||
 			 curr_ios.timing == MMC_TIMING_UHS_DDR50))
@@ -3215,6 +3255,9 @@ void sdhci_msm_dump_vendor_regs(struct sdhci_host *host)
 	if (host->cq_host)
 		sdhci_msm_cmdq_dump_debug_ram(host);
 
+	MMC_TRACE(host->mmc, "Data cnt: 0x%08x | Fifo cnt: 0x%08x\n",
+		readl_relaxed(msm_host->core_mem + CORE_MCI_DATA_CNT),
+		readl_relaxed(msm_host->core_mem + CORE_MCI_FIFO_CNT));
 	pr_info("Data cnt: 0x%08x | Fifo cnt: 0x%08x | Int sts: 0x%08x\n",
 		readl_relaxed(msm_host->core_mem + CORE_MCI_DATA_CNT),
 		readl_relaxed(msm_host->core_mem + CORE_MCI_FIFO_CNT),
@@ -4511,7 +4554,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 				mmc_hostname(host->mmc));
 	}
 
-	
+	/* Successful initialization */
 	goto out;
 
 remove_max_bus_bw_file:
@@ -4731,7 +4774,7 @@ static int sdhci_msm_suspend(struct device *dev)
 	}
 	ret = sdhci_msm_runtime_suspend(dev);
 out:
-
+	sdhci_msm_disable_controller_clock(host);
 	if (host->mmc->card && mmc_card_sdio(host->mmc->card)) {
 		sdio_cfg = sdhci_msm_cfg_sdio_wakeup(host, true);
 		if (sdio_cfg)

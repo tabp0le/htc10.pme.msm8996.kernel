@@ -274,7 +274,7 @@ int dwc3_event_buffers_setup(struct dwc3 *dwc)
 
 	for (n = 0; n < dwc->num_event_buffers; n++) {
 		evt = dwc->ev_buffs[n];
-		dev_dbg(dwc->dev, "Event buf %p dma %08llx length %d\n",
+		dev_dbg(dwc->dev, "Event buf %pK dma %08llx length %d\n",
 				evt->buf, (unsigned long long) evt->dma,
 				evt->length);
 
@@ -911,7 +911,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (dwc->maximum_speed == USB_SPEED_UNKNOWN)
 		dwc->maximum_speed = USB_SPEED_SUPER;
 
-	dwc->max_speed_backup = dwc->maximum_speed; 
+	dwc->max_speed_backup = dwc->maximum_speed; /* 2015/12/22, USB Team, PCN00050 */
 
 	dwc->lpm_nyet_threshold = lpm_nyet_threshold;
 

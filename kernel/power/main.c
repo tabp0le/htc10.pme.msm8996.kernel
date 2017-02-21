@@ -514,7 +514,7 @@ wakelock_debug_store(struct kobject *kobj, struct kobj_attribute *attr,
         return n;
 }
 wakelock_debug_attr(wakelock_debug);
-#endif 
+#endif //CONFIG_PM_DEBUG
 
 static ssize_t wake_lock_show(struct kobject *kobj,
 			      struct kobj_attribute *attr,
@@ -627,33 +627,8 @@ static ssize_t pm_freeze_timeout_store(struct kobject *kobj,
 
 power_attr(pm_freeze_timeout);
 
-#endif	
+#endif	/* CONFIG_FREEZER*/
 
-#ifdef CONFIG_HTC_PNPMGR
-int powersave_enabled = 0;
-static ssize_t
-powersave_show(struct kobject *kobj, struct kobj_attribute *attr,
-                char *buf)
-{
-	return sprintf(buf, "%d\n", powersave_enabled);
-}
-
-static ssize_t
-powersave_store(struct kobject *kobj, struct kobj_attribute *attr,
-                const char *buf, size_t n)
-{
-	unsigned long val;
-
-	if (kstrtoul(buf, 10, &val))
-		return -EINVAL;
-
-	printk(KERN_INFO "Change powersave attr from %d to %ld\n", powersave_enabled, val);
-	powersave_enabled = val;
-	sysfs_notify(kobj, NULL, "powersave");
-	return n;
-}
-power_attr(powersave);
-#endif
 
 static char ktop_buf[1024];
 static ssize_t
@@ -721,7 +696,7 @@ static struct attribute * g[] = {
 #ifdef CONFIG_PM_WAKELOCKS
 #ifdef CONFIG_PM_DEBUG
 	&wakelock_debug_attr.attr,
-#endif 
+#endif //CONFIG_PM_DEBUG
 	&wake_lock_attr.attr,
 	&wake_unlock_attr.attr,
 #endif
@@ -734,9 +709,6 @@ static struct attribute * g[] = {
 #endif
 #ifdef CONFIG_FREEZER
 	&pm_freeze_timeout_attr.attr,
-#endif
-#ifdef CONFIG_HTC_PNPMGR
-	&powersave_attr.attr,
 #endif
 	&thermal_monitor_attr.attr,
 	&ktop_accu_attr.attr,

@@ -2,6 +2,8 @@
 # Makefile for the <t-base core driver
 #
 
+ccflags-y += -Wno-misleading-indentation
+
 GUD_ROOT_FOLDER := drivers/gud/
 
 # add our modules to kernel.

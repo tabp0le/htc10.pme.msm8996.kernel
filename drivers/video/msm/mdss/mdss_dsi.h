@@ -149,6 +149,7 @@ enum dsi_pm_type {
 #define CTRL_STATE_PANEL_INIT		BIT(0)
 #define CTRL_STATE_MDP_ACTIVE		BIT(1)
 #define CTRL_STATE_DSI_ACTIVE		BIT(2)
+#define CTRL_STATE_PANEL_LP		BIT(3)
 
 #define DSI_NON_BURST_SYNCH_PULSE	0
 #define DSI_NON_BURST_SYNCH_EVENT	1
@@ -553,7 +554,7 @@ struct mdss_dsi_ctrl_pdata {
 
 	bool phy_power_off;
 
-	
+	/*HTC: ADD*/
 	struct dsi_panel_cmds cabc_off_cmds;
 	struct dsi_panel_cmds cabc_ui_cmds;
 	struct dsi_panel_cmds cabc_video_cmds;

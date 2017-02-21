@@ -5763,6 +5763,9 @@ fail_tmdev:
 }
 
 #ifdef CONFIG_PM
+/*
+ * HTC: Avoid wakeup by tsens when suspend/resume.
+ */
 static int tsens_irq_status = 1;
 static int tsens_suspend(struct device *dev)
 {
@@ -5869,7 +5872,7 @@ static int tsens_tm_probe(struct platform_device *pdev)
 	if(!tsens_tm_probe_count) {
 		tsens_tm_probe_count++;
 		if (monitor_tsense_wq == NULL) {
-			
+			/* Create private workqueue... */
 			monitor_tsense_wq = create_workqueue("monitor_tsense_wq");
 			printk(KERN_INFO "Create monitor tsense workqueue(0x%p)...\n", monitor_tsense_wq);
 		}
@@ -5947,6 +5950,11 @@ static int tsens_thermal_zone_register(struct tsens_tm_device *tmdev)
 	const struct of_device_id *id;
 	struct device_node *of_node;
 
+	if (tmdev == NULL) {
+		pr_err("Invalid tsens instance\n");
+		return -EINVAL;
+	}
+
 	of_node = tmdev->pdev->dev.of_node;
 	if (of_node == NULL) {
 		pr_err("Invalid of_node??\n");
@@ -5962,11 +5970,6 @@ static int tsens_thermal_zone_register(struct tsens_tm_device *tmdev)
 	if (id == NULL) {
 		pr_err("can not find tsens_match of_node\n");
 		return -ENODEV;
-	}
-
-	if (tmdev == NULL) {
-		pr_err("Invalid tsens instance\n");
-		return -EINVAL;
 	}
 
 	for (i = 0; i < tmdev->tsens_num_sensor; i++) {

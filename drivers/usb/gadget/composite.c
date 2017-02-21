@@ -28,9 +28,11 @@
 #define SSUSB_GADGET_VBUS_DRAW_UNITS 8
 #define HSUSB_GADGET_VBUS_DRAW_UNITS 2
 
+/*++ 2015/11/16 USB Team, PCN00038 ++*/
 #define MAC_FIRST_DT_LENGTH  18
 #define WIN_LINUX_FIRST_DT1_LENGTH 8
 #define WIN_LINUX_FIRST_DT2_LENGTH 64
+/*-- 2015/11/16 USB Team, PCN00038 --*/
 
 static bool enable_l1_for_hs;
 module_param(enable_l1_for_hs, bool, S_IRUGO | S_IWUSR);
@@ -52,7 +54,14 @@ struct usb_os_string {
 	__u8	bPad;
 } __packed;
 
+/*
+ * The code in this file is utility code, used to build a gadget driver
+ * from one or more "function" drivers, one or more "configuration"
+ * objects, and a "usb_composite_driver" by gluing them together along
+ * with the relevant device-wide data.
+ */
 
+/*++ 2015/07/08 USB Team, PCN00011 ++*/
 enum {
 	OS_NOT_YET,
 	OS_MAC,
@@ -61,6 +70,7 @@ enum {
 };
 
 static int os_type;
+/*-- 2015/07/08 USB Team, PCN00011 --*/
 
 static struct usb_gadget_strings **get_containers_gs(
 		struct usb_gadget_string_container *uc)
@@ -159,7 +169,7 @@ int config_ep_by_speed(struct usb_gadget *g,
 
 ep_found:
 	/* commit results */
-	_ep->maxpacket = usb_endpoint_maxp(chosen_desc);
+	_ep->maxpacket = usb_endpoint_maxp(chosen_desc) & 0x7ff;
 	_ep->desc = chosen_desc;
 	_ep->comp_desc = NULL;
 	_ep->maxburst = 0;
@@ -215,7 +225,7 @@ int usb_add_function(struct usb_configuration *config,
 {
 	int	value = -EINVAL;
 
-	DBG(config->cdev, "adding '%s'/%p to config '%s'/%p\n",
+	DBG(config->cdev, "adding '%s'/%pK to config '%s'/%pK\n",
 			function->name, function,
 			config->label, config);
 
@@ -250,7 +260,7 @@ int usb_add_function(struct usb_configuration *config,
 
 done:
 	if (value)
-		DBG(config->cdev, "adding '%s'/%p --> %d\n",
+		DBG(config->cdev, "adding '%s'/%pK --> %d\n",
 				function->name, function, value);
 	return value;
 }
@@ -483,9 +493,11 @@ static u8 encode_bMaxPower(enum usb_device_speed speed,
 	}
 }
 
+/*++ 2015/07/08 USB Team, PCN00011 ++*/
 extern struct usb_descriptor_header *ss_mtp_descs[];
 extern struct usb_descriptor_header *hs_mtp_descs[];
 extern struct usb_descriptor_header *fs_mtp_descs[];
+/*-- 2015/07/08 USB Team, PCN00011 --*/
 
 static int config_buf(struct usb_configuration *config,
 		enum usb_device_speed speed, void *buf, u8 type)
@@ -525,18 +537,24 @@ static int config_buf(struct usb_configuration *config,
 		switch (speed) {
 		case USB_SPEED_SUPER:
 			descriptors = f->ss_descriptors;
+/*++ 2015/07/08 USB Team, PCN00011 ++*/
 			if (!strcmp("mtp", f->name) && (os_type == OS_MAC))
 				descriptors = ss_mtp_descs;
+/*-- 2015/07/08 USB Team, PCN00011 --*/
 			break;
 		case USB_SPEED_HIGH:
 			descriptors = f->hs_descriptors;
+/*++ 2015/07/08 USB Team, PCN00011 ++*/
 			if (!strcmp("mtp", f->name) && (os_type == OS_MAC))
 				descriptors = hs_mtp_descs;
+/*-- 2015/07/08 USB Team, PCN00011 --*/
 			break;
 		default:
 			descriptors = f->fs_descriptors;
+/*++ 2015/07/08 USB Team, PCN00011 ++*/
 			if (!strcmp("mtp", f->name) && (os_type == OS_MAC))
 				descriptors = fs_mtp_descs;
+/*-- 2015/07/08 USB Team, PCN00011 --*/
 		}
 
 		if (!descriptors)
@@ -864,7 +882,7 @@ static int set_config(struct usb_composite_dev *cdev,
 
 		result = f->set_alt(f, tmp, 0);
 		if (result < 0) {
-			DBG(cdev, "interface %d (%s/%p) alt 0 --> %d\n",
+			DBG(cdev, "interface %d (%s/%pK) alt 0 --> %d\n",
 					tmp, f->name, f, result);
 
 			reset_config(cdev);
@@ -943,7 +961,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	if (!bind)
 		goto done;
 
-	DBG(cdev, "adding config #%u '%s'/%p\n",
+	DBG(cdev, "adding config #%u '%s'/%pK\n",
 			config->bConfigurationValue,
 			config->label, config);
 
@@ -960,7 +978,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 					struct usb_function, list);
 			list_del(&f->list);
 			if (f->unbind) {
-				DBG(cdev, "unbind function '%s'/%p\n",
+				DBG(cdev, "unbind function '%s'/%pK\n",
 					f->name, f);
 				f->unbind(config, f);
 				/* may free memory for "f" */
@@ -971,7 +989,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	} else {
 		unsigned	i;
 
-		DBG(cdev, "cfg %d/%p speeds:%s%s%s\n",
+		DBG(cdev, "cfg %d/%pK speeds:%s%s%s\n",
 			config->bConfigurationValue, config,
 			config->superspeed ? " super" : "",
 			config->highspeed ? " high" : "",
@@ -986,7 +1004,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 
 			if (!f)
 				continue;
-			DBG(cdev, "  interface %d = %s/%p\n",
+			DBG(cdev, "  interface %d = %s/%pK\n",
 				i, f->name, f);
 		}
 	}
@@ -1014,13 +1032,13 @@ static void unbind_config(struct usb_composite_dev *cdev,
 				struct usb_function, list);
 		list_del(&f->list);
 		if (f->unbind) {
-			DBG(cdev, "unbind function '%s'/%p\n", f->name, f);
+			DBG(cdev, "unbind function '%s'/%pK\n", f->name, f);
 			f->unbind(config, f);
 			/* may free memory for "f" */
 		}
 	}
 	if (config->unbind) {
-		DBG(cdev, "unbind config '%s'/%p\n", config->label, config);
+		DBG(cdev, "unbind config '%s'/%pK\n", config->label, config);
 		config->unbind(config);
 			/* may free memory for "c" */
 	}
@@ -1060,10 +1078,12 @@ void usb_remove_config(struct usb_composite_dev *cdev,
 
 	spin_unlock_irqrestore(&cdev->lock, flags);
 
+/*++ 2015/11/16 USB Team, PCN00038 ++*/
 	os_type = OS_NOT_YET;
 #ifdef CONFIG_HTC_USB_DEBUG_FLAG
 	printk("[USB]%s unbind+\n",__func__);
 #endif
+/*-- 2015/11/16 USB Team, PCN00038 --*/
 
 	unbind_config(cdev, config);
 }
@@ -1468,6 +1488,7 @@ static void composite_setup_complete(struct usb_ep *ep, struct usb_request *req)
 				req->status, req->actual, req->length);
 }
 
+/*++ 2015/11/16 USB Team, PCN00038 ++*/
 /*
  * Copyright (C) 2015 HTC, Inc.
  * Author: HTC USB Team
@@ -1518,6 +1539,7 @@ static void get_os_type(int length)
 		check_MAC_or_LINUX(first_dt_w_length,first_string_w_length);
 	}
 }
+/*-- 2015/11/16 USB Team, PCN00038 --*/
 
 static int count_ext_compat(struct usb_configuration *c)
 {
@@ -1712,10 +1734,12 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		switch (w_value >> 8) {
 
 		case USB_DT_DEVICE:
+/*++ 2015/11/16 USB Team, PCN00038 ++*/
 			if (first_dt_w_length == 0) {
 				first_dt_w_length = w_length;
 				printk("[USB] first_dt_w_length = %d \n",first_dt_w_length);
 			}
+/*-- 2015/11/16 USB Team, PCN00038 --*/
 			cdev->desc.bNumConfigurations =
 				count_configs(cdev, USB_DT_DEVICE);
 			if (cdev->desc.bNumConfigurations == 0) {
@@ -1762,7 +1786,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				break;
 			/* FALLTHROUGH */
 		case USB_DT_CONFIG:
-			get_os_type(w_length);
+			get_os_type(w_length);/*++ 2015/11/16 USB Team, PCN00038 ++*/
 			spin_lock(&cdev->lock);
 			value = config_desc(cdev, w_value);
 			spin_unlock(&cdev->lock);
@@ -1770,10 +1794,12 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				value = min(w_length, (u16) value);
 			break;
 		case USB_DT_STRING:
+/*++ 2015/11/16 USB Team, PCN00038 ++*/
 			if (first_string_w_length == 0) {
 				first_string_w_length = w_length;
 				printk("[USB] first_string_w_length = %d \n",first_string_w_length);
 			}
+/*-- 2015/11/16 USB Team, PCN00038 --*/
 			spin_lock(&cdev->lock);
 			value = get_string(cdev, req->buf,
 					w_index, w_value & 0xff);
@@ -2122,10 +2148,12 @@ void composite_disconnect(struct usb_gadget *gadget)
 		}
 		reset_config(cdev);
 	}
+/*++ 2015/07/08 USB Team, PCN00011 ++*/
 	if (cdev->driver->disconnect) {
 		cdev->driver->disconnect(cdev);
 		os_type = OS_NOT_YET;
 	}
+/*-- 2015/07/08 USB Team, PCN00011 --*/
 	if (cdev->delayed_status != 0) {
 		INFO(cdev, "delayed status mismatch..resetting\n");
 		cdev->delayed_status = 0;
@@ -2133,11 +2161,15 @@ void composite_disconnect(struct usb_gadget *gadget)
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
 
+/*++ 2015/11/26 USB Team, PCN00043 ++*/
 void composite_mute_disconnect(struct usb_gadget *gadget)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
 	unsigned long				flags;
 
+	/* REVISIT:  should we have config and device level
+	 * disconnect callbacks?
+	 */
 	spin_lock_irqsave(&cdev->lock, flags);
 	if (cdev->config)
 		reset_config(cdev);
@@ -2148,6 +2180,8 @@ void composite_mute_disconnect(struct usb_gadget *gadget)
 	}
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
+/*-- 2015/11/26 USB Team, PCN00043 --*/
+/*-------------------------------------------------------------------------*/
 
 static ssize_t suspended_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -2456,7 +2490,7 @@ static const struct usb_gadget_driver composite_driver_template = {
 	.reset		= composite_disconnect,
 	.disconnect	= composite_disconnect,
 
-	.mute_disconnect = composite_mute_disconnect,   
+	.mute_disconnect = composite_mute_disconnect,   /*++ 2015/11/26 USB Team, PCN00043 ++*/
 
 	.suspend	= composite_suspend,
 	.resume		= composite_resume,
